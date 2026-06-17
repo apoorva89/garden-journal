@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install Linux native binaries
+        run: npm install --no-save lightningcss-linux-x64-gnu lightningcss-linux-x64-musl
+
       - name: Build
         run: npm run build
 
