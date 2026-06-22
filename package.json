@@ -6,10 +6,12 @@
     "dev": "next dev --webpack --disable-source-maps",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run"
   },
   "dependencies": {
     "idb": "^8.0.3",
+    "nanoid": "^5.1.14",
     "next": "16.2.9",
     "next-pwa": "^5.6.0",
     "react": "19.2.4",
@@ -20,9 +22,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
+    "fake-indexeddb": "^6.2.5",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.9"
   }
 }

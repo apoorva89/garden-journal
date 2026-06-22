@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   assetPrefix: '/garden-journal/',
   trailingSlash: true,
   images: { unoptimized: true },
+  outputFileTracingRoot: __dirname,
 };
 
 export default nextConfig;
