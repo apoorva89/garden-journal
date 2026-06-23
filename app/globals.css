@@ -10,6 +10,18 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Garden palette */
+  --color-forest: #2D4A2D;
+  --color-leaf: #4A7C4A;
+  --color-terra: #C4623A;
+  --color-mushroom: #8C8279;
+  --color-bone: #E8E3DC;
+  --color-cream: #F7F4EF;
+  --color-surface: #FFFFFF;
+  --color-ink: #1C1C1A;
+  --color-muted: #6B6560;
+  --color-weather: #EAF0EA;
 }
 
 @media (prefers-color-scheme: dark) {
