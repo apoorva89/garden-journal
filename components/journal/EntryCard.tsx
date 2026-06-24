@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import type { JournalEntry, EntryPhoto } from '@/lib/db'
 
 interface PhotoStripProps {
@@ -9,19 +10,21 @@ function PhotoStrip({ photos }: PhotoStripProps) {
 
   if (photos.length === 1) {
     return (
-      <div className="mt-3 rounded-xl overflow-hidden">
+      <div className="mt-3 rounded-xl overflow-hidden" style={{ height: 200 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photos[0].dataUrl} alt="" className="w-full object-cover" style={{ height: 200 }} />
+        <img src={photos[0].dataUrl} alt="" className="w-full h-full object-cover" />
       </div>
     )
   }
 
   if (photos.length === 2) {
     return (
-      <div className="mt-3 flex gap-1 rounded-xl overflow-hidden">
+      <div className="mt-3 flex gap-1 rounded-xl overflow-hidden" style={{ height: 160 }}>
         {photos.map((p) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={p.id} src={p.dataUrl} alt="" className="flex-1 object-cover" style={{ height: 160 }} />
+          <div key={p.id} className="flex-1 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={p.dataUrl} alt="" className="w-full h-full object-cover" />
+          </div>
         ))}
       </div>
     )
@@ -29,12 +32,16 @@ function PhotoStrip({ photos }: PhotoStripProps) {
 
   return (
     <div className="mt-3 flex gap-1 rounded-xl overflow-hidden" style={{ height: 200 }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={photos[0].dataUrl} alt="" className="flex-1 object-cover h-full" />
-      <div className="flex flex-col gap-1" style={{ width: '38%' }}>
+      <div className="flex-1 overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={photos[0].dataUrl} alt="" className="w-full h-full object-cover" />
+      </div>
+      <div className="flex flex-col gap-1 overflow-hidden" style={{ width: '38%' }}>
         {photos.slice(1, 3).map((p) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img key={p.id} src={p.dataUrl} alt="" className="flex-1 w-full object-cover" />
+          <div key={p.id} className="flex-1 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={p.dataUrl} alt="" className="w-full h-full object-cover" />
+          </div>
         ))}
       </div>
     </div>
@@ -53,9 +60,9 @@ export default function EntryCard({ entry, photos }: Props) {
   const monthName = d.toLocaleDateString('en-GB', { month: 'long' })
 
   return (
-    <article
-      id={`entry-${entry.date}`}
-      className="mx-4 mb-4 bg-surface rounded-2xl p-4"
+    <Link
+      href={`/journal/entry?id=${entry.id}`}
+      className="block mx-4 mb-4 bg-surface rounded-2xl p-4 active:opacity-80"
       style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -83,6 +90,6 @@ export default function EntryCard({ entry, photos }: Props) {
       ) : null}
 
       <PhotoStrip photos={photos} />
-    </article>
+    </Link>
   )
 }

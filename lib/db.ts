@@ -332,7 +332,7 @@ export async function getEntriesByMonth(
   const d = await useDb(database)
   const yearMonth = `${year}-${String(month).padStart(2, '0')}`
   const entries = await d.getAllFromIndex('journalEntries', 'by-yearMonth', yearMonth)
-  return entries.sort((a, b) => b.date.localeCompare(a.date))
+  return entries.sort((a, b) => b.date.localeCompare(a.date) || a.createdAt.localeCompare(b.createdAt))
 }
 
 export async function getUnsyncedEntries(database?: GardenDB): Promise<JournalEntry[]> {

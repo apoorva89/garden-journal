@@ -47,7 +47,11 @@ export default function JournalPage() {
   function handleDateSelect(date: string) {
     setSelectedDate(date)
     const el = document.getElementById(`entry-${date}`)
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (!el) return
+    const cal = document.getElementById('calendar-strip')
+    const offset = cal ? cal.offsetHeight : 0
+    const y = el.getBoundingClientRect().top + window.scrollY - offset
+    window.scrollTo({ top: y, behavior: 'smooth' })
   }
 
   const entryDates = new Set(entries.map((e) => e.date))
