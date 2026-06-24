@@ -229,8 +229,7 @@ export default function NewEntryPage() {
       >
         <button
           onClick={() => router.back()}
-          className="text-sm font-medium text-mushroom flex-none px-1 active:text-ink"
-          aria-label="Cancel"
+          className="flex-1 h-11 rounded-full border border-bone text-sm font-medium text-mushroom active:opacity-70"
         >
           Cancel
         </button>
