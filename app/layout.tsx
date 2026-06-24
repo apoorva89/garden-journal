@@ -14,6 +14,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="manifest" href="/garden-journal/manifest.json" />
         <meta name="theme-color" content="#4a7c59" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

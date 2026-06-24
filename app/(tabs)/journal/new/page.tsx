@@ -49,7 +49,6 @@ export default function NewEntryPage() {
   const [tagSheetIndex, setTagSheetIndex] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const dateInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -111,16 +110,6 @@ export default function NewEntryPage() {
     }
   }
 
-  function openDatePicker() {
-    const input = dateInputRef.current
-    if (!input) return
-    if (typeof (input as HTMLInputElement & { showPicker?: () => void }).showPicker === 'function') {
-      ;(input as HTMLInputElement & { showPicker: () => void }).showPicker()
-    } else {
-      input.click()
-    }
-  }
-
   const d = new Date(date + 'T00:00:00')
   const weekday = d.toLocaleDateString('en-GB', { weekday: 'long' })
   const day = d.getDate()
@@ -132,24 +121,17 @@ export default function NewEntryPage() {
       <div className="pb-24 min-h-screen bg-cream">
         {/* Date header */}
         <div className="px-4 pt-5 pb-3">
-          <button
-            onClick={openDatePicker}
-            className="flex items-center gap-1.5 text-[11px] font-bold tracking-widest uppercase text-forest"
-            aria-label="Change date"
-          >
+          <div className="relative inline-flex items-center gap-1.5 text-[11px] font-bold tracking-widest uppercase text-forest">
             {weekday}, {day} {monthName} {year}
             <span className="text-[10px] text-mushroom normal-case tracking-normal font-normal">✎</span>
-          </button>
-          <input
-            ref={dateInputRef}
-            type="date"
-            value={date}
-            max={todayStr()}
-            onChange={(e) => e.target.value && setDate(e.target.value)}
-            className="sr-only"
-            aria-hidden="true"
-            tabIndex={-1}
-          />
+            <input
+              type="date"
+              value={date}
+              max={todayStr()}
+              onChange={(e) => e.target.value && setDate(e.target.value)}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+            />
+          </div>
         </div>
 
         {/* Text area */}
