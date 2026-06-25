@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import CalendarStrip from '@/components/journal/CalendarStrip'
 import EntryFeed from '@/components/journal/EntryFeed'
+import { getEntriesByMonth, getEntryPhotosByEntry } from '@/lib/db'
 import type { JournalEntry, EntryPhoto } from '@/lib/db'
 
 export default function JournalPage() {
@@ -18,7 +19,6 @@ export default function JournalPage() {
     let cancelled = false
 
     async function load() {
-      const { getEntriesByMonth, getEntryPhotosByEntry } = await import('@/lib/db')
       const es = await getEntriesByMonth(displayYear, displayMonth)
       if (cancelled) return
       setEntries(es)

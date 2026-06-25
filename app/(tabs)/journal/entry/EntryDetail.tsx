@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { getJournalEntryById, getEntryPhotosByEntry, updateJournalEntry, createEntryPhoto, updateEntryPhoto, deleteEntryPhoto } from '@/lib/db'
 import CropTagSheet from '@/components/journal/CropTagSheet'
 import type { JournalEntry } from '@/lib/db'
 
@@ -56,7 +57,6 @@ export default function EntryDetail() {
   useEffect(() => {
     if (!id) { router.replace('/journal'); return }
     async function load() {
-      const { getJournalEntryById, getEntryPhotosByEntry } = await import('@/lib/db')
       const e = await getJournalEntryById(id!)
       if (!e) { router.replace('/journal'); return }
       const ps = await getEntryPhotosByEntry(id!)
@@ -95,7 +95,6 @@ export default function EntryDetail() {
     if (saving || !entry) return
     setSaving(true)
     try {
-      const { updateJournalEntry, createEntryPhoto, updateEntryPhoto, deleteEntryPhoto } = await import('@/lib/db')
       const now = new Date().toISOString()
 
       for (const photoId of deletedPhotoIds) {
@@ -158,7 +157,7 @@ export default function EntryDetail() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="What happened in the garden today?"
-            className="w-full bg-surface rounded-2xl p-4 text-sm text-ink leading-relaxed resize-none outline-none placeholder:text-mushroom"
+            className="w-full bg-surface rounded-2xl p-4 text-base text-ink leading-relaxed resize-none outline-none placeholder:text-mushroom"
             style={{ minHeight: 200, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
           />
         </div>
@@ -220,7 +219,7 @@ export default function EntryDetail() {
               value={nextSeasonNote}
               onChange={(e) => setNextSeasonNote(e.target.value)}
               placeholder="What would you do differently next year?"
-              className="mt-2 w-full bg-surface rounded-2xl p-4 text-sm text-ink leading-relaxed resize-none outline-none placeholder:text-mushroom"
+              className="mt-2 w-full bg-surface rounded-2xl p-4 text-base text-ink leading-relaxed resize-none outline-none placeholder:text-mushroom"
               style={{ minHeight: 120, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
             />
           )}

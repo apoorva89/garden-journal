@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { createEntryPhoto, createJournalEntry, updateJournalEntry } from '@/lib/db'
 import CropTagSheet from '@/components/journal/CropTagSheet'
 
 function todayStr(): string {
@@ -74,7 +75,6 @@ export default function NewEntryPage() {
     if (saving) return
     setSaving(true)
     try {
-      const { createEntryPhoto, createJournalEntry, updateJournalEntry } = await import('@/lib/db')
       const now = new Date().toISOString()
 
       const entry = await createJournalEntry({
@@ -139,7 +139,7 @@ export default function NewEntryPage() {
             onChange={(e) => setText(e.target.value)}
             placeholder="What happened in the garden today?"
             autoFocus
-            className="w-full bg-surface rounded-2xl p-4 text-sm text-ink leading-relaxed resize-none outline-none placeholder:text-mushroom"
+            className="w-full bg-surface rounded-2xl p-4 text-base text-ink leading-relaxed resize-none outline-none placeholder:text-mushroom"
             style={{ minHeight: 200, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
           />
         </div>
@@ -203,7 +203,7 @@ export default function NewEntryPage() {
               value={nextSeasonNote}
               onChange={(e) => setNextSeasonNote(e.target.value)}
               placeholder="What would you do differently next year?"
-              className="mt-2 w-full bg-surface rounded-2xl p-4 text-sm text-ink leading-relaxed resize-none outline-none placeholder:text-mushroom"
+              className="mt-2 w-full bg-surface rounded-2xl p-4 text-base text-ink leading-relaxed resize-none outline-none placeholder:text-mushroom"
               style={{ minHeight: 120, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
             />
           )}

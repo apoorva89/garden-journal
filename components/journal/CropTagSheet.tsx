@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { getAllCropTypes, createCropType } from '@/lib/db'
 import type { CropType } from '@/lib/db'
 
 interface Props {
@@ -19,7 +20,7 @@ export default function CropTagSheet({ photoLabel, selectedIds, onDone, onClose 
   const createInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    import('@/lib/db').then(({ getAllCropTypes }) => getAllCropTypes().then(setCrops))
+    getAllCropTypes().then(setCrops)
   }, [])
 
   useEffect(() => {
@@ -42,7 +43,6 @@ export default function CropTagSheet({ photoLabel, selectedIds, onDone, onClose 
   async function handleCreateCrop() {
     const name = creatingName.trim()
     if (!name) return
-    const { createCropType } = await import('@/lib/db')
     const crop = await createCropType({ name, lessons: [] })
     setCrops((prev) => [...prev, crop])
     setChecked((prev) => new Set([...prev, crop.id]))
@@ -78,7 +78,7 @@ export default function CropTagSheet({ photoLabel, selectedIds, onDone, onClose 
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search crops…"
-            className="w-full bg-cream rounded-xl px-3 py-2 text-sm text-ink placeholder:text-mushroom outline-none"
+            className="w-full bg-cream rounded-xl px-3 py-2 text-base text-ink placeholder:text-mushroom outline-none"
           />
         </div>
 
@@ -121,7 +121,7 @@ export default function CropTagSheet({ photoLabel, selectedIds, onDone, onClose 
                 onChange={(e) => setCreatingName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreateCrop()}
                 placeholder="Crop name…"
-                className="flex-1 bg-cream rounded-xl px-3 py-2 text-sm text-ink placeholder:text-mushroom outline-none"
+                className="flex-1 bg-cream rounded-xl px-3 py-2 text-base text-ink placeholder:text-mushroom outline-none"
               />
               <button
                 onClick={handleCreateCrop}
