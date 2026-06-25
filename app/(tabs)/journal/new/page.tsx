@@ -49,6 +49,7 @@ export default function NewEntryPage() {
   const [photos, setPhotos] = useState<LocalPhoto[]>([])
   const [tagSheetIndex, setTagSheetIndex] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const handleFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files ?? [])
@@ -74,6 +75,7 @@ export default function NewEntryPage() {
   async function handleSave() {
     if (saving) return
     setSaving(true)
+    setSaveError(null)
     try {
       const now = new Date().toISOString()
 
@@ -103,6 +105,9 @@ export default function NewEntryPage() {
       }
 
       router.push('/journal')
+    } catch (err: unknown) {
+      const e = err instanceof Error ? err : new Error(String(err))
+      setSaveError(`${e.name}: ${e.message}\n${e.stack ?? ''}`)
     } finally {
       setSaving(false)
     }
@@ -232,6 +237,15 @@ export default function NewEntryPage() {
           {saving ? 'Saving…' : 'Save entry'}
         </button>
       </div>
+
+      {saveError && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-end p-4" onClick={() => setSaveError(null)}>
+          <div className="w-full bg-white rounded-2xl p-4 max-h-[70vh] overflow-y-auto">
+            <p className="text-red-600 font-bold text-sm mb-2">Save error (tap to dismiss)</p>
+            <pre className="text-xs text-gray-800 whitespace-pre-wrap break-all">{saveError}</pre>
+          </div>
+        </div>
+      )}
 
       {tagSheetIndex !== null && (
         <CropTagSheet
