@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import CropTagSheet from '@/components/journal/CropTagSheet'
 import type { JournalEntry } from '@/lib/db'
@@ -52,8 +52,6 @@ export default function EntryDetail() {
   const [deletedPhotoIds, setDeletedPhotoIds] = useState<string[]>([])
   const [tagSheetIndex, setTagSheetIndex] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
-
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!id) { router.replace('/journal'); return }
@@ -190,22 +188,16 @@ export default function EntryDetail() {
               </div>
             ))}
 
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-none w-20 h-20 rounded-xl border-2 border-dashed border-leaf flex items-center justify-center text-leaf text-3xl active:opacity-70"
-              aria-label="Add photo"
-            >
+            <div className="relative flex-none w-20 h-20 rounded-xl border-2 border-dashed border-leaf flex items-center justify-center text-leaf text-3xl">
               +
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileChange}
-              className="sr-only"
-              tabIndex={-1}
-            />
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileChange}
+                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+              />
+            </div>
           </div>
         </div>
 

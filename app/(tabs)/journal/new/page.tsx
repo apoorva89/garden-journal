@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import CropTagSheet from '@/components/journal/CropTagSheet'
 
@@ -48,8 +48,6 @@ export default function NewEntryPage() {
   const [photos, setPhotos] = useState<LocalPhoto[]>([])
   const [tagSheetIndex, setTagSheetIndex] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
   const handleFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(e.target.files ?? [])
@@ -173,23 +171,16 @@ export default function NewEntryPage() {
               </button>
             ))}
 
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-none w-20 h-20 rounded-xl border-2 border-dashed border-leaf flex items-center justify-center text-leaf text-3xl active:opacity-70"
-              aria-label="Add photo"
-            >
+            <div className="relative flex-none w-20 h-20 rounded-xl border-2 border-dashed border-leaf flex items-center justify-center text-leaf text-3xl">
               +
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFileChange}
-              className="sr-only"
-              aria-hidden="true"
-              tabIndex={-1}
-            />
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileChange}
+                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+              />
+            </div>
           </div>
         </div>
 

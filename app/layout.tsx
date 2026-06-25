@@ -10,6 +10,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: '#4a7c59',
+  interactiveWidget: 'resizes-visual',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
