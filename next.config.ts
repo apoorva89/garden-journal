@@ -8,6 +8,7 @@ const withPWA = require('next-pwa')({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
+  ignoreURLParametersMatching: [/^id$/],
   additionalManifestEntries: [
     { url: '/garden-journal/', revision: buildRevision },
     { url: '/garden-journal/journal/', revision: buildRevision },
