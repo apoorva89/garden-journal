@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import ServiceWorkerRegistration from './sw-register';
 
 export const metadata: Metadata = {
   title: 'Garden Journal',
@@ -21,7 +22,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Garden Journal" />
         <link rel="apple-touch-icon" href="/garden-journal/icon-192.png" />
       </head>
-      <body>{children}</body>
+      <body>
+        <ServiceWorkerRegistration />
+        {children}
+      </body>
     </html>
   );
 }
