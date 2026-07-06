@@ -17,15 +17,20 @@ export default function EntryFeed({ entries, photosByEntry }: Props) {
     )
   }
 
+  const seenDates = new Set<string>()
+
   return (
     <div className="pt-4">
-      {entries.map((entry) => (
-        <EntryCard
-          key={entry.id}
-          entry={entry}
-          photos={photosByEntry[entry.id] ?? []}
-        />
-      ))}
+      {entries.map((entry) => {
+        const isFirst = !seenDates.has(entry.date)
+        if (isFirst) seenDates.add(entry.date)
+        return (
+          <div key={entry.id}>
+            {isFirst && <div id={`entry-${entry.date}`} />}
+            <EntryCard entry={entry} photos={photosByEntry[entry.id] ?? []} />
+          </div>
+        )
+      })}
     </div>
   )
 }

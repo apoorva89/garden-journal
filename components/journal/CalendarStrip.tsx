@@ -49,7 +49,7 @@ export default function CalendarStrip({
   }
 
   return (
-    <div className="bg-surface sticky top-0 z-10 px-3 pt-3 pb-2" style={{ boxShadow: '0 1px 0 #E8E3DC' }}>
+    <div id="calendar-strip" className="bg-surface sticky top-0 z-10 px-3 pt-3 pb-2" style={{ boxShadow: '0 1px 0 #E8E3DC' }}>
       {/* Month header */}
       <div className="flex items-center justify-between mb-2">
         <button
@@ -108,19 +108,14 @@ export default function CalendarStrip({
                     ? 'bg-forest text-surface font-bold'
                     : isSelected
                     ? 'bg-bone text-ink font-semibold'
+                    : hasEntry
+                    ? 'bg-leaf text-surface font-semibold'
                     : 'text-ink',
                 ].join(' ')}
               >
                 {day}
               </span>
-              {hasEntry ? (
-                <span
-                  className="w-1.5 h-1 bg-leaf"
-                  style={{ borderRadius: '40% 60% 60% 40% / 50% 50% 50% 50%' }}
-                />
-              ) : (
-                <span className="w-1.5 h-1" />
-              )}
+              <span className="w-1.5 h-1" />
             </button>
           )
         })}

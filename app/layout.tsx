@@ -1,22 +1,24 @@
-import type { Metadata } from 'next';
-import './globals.css';
-import ServiceWorkerRegistration from './sw-register';
+import type { Metadata, Viewport } from 'next'
+import './globals.css'
+import ServiceWorkerRegistration from './sw-register'
 
 export const metadata: Metadata = {
   title: 'Garden Journal',
   description: 'Personal garden journal',
-};
+}
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#4a7c59',
+  interactiveWidget: 'resizes-visual',
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
         <link rel="manifest" href="/garden-journal/manifest.json" />
-        <meta name="theme-color" content="#4a7c59" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Garden Journal" />
@@ -27,5 +29,5 @@ export default function RootLayout({
         {children}
       </body>
     </html>
-  );
+  )
 }
