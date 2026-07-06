@@ -1,15 +1,16 @@
 import { clientsClaim } from 'workbox-core';
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
+import { registerRoute, NavigationRoute } from 'workbox-routing';
 
 clientsClaim();
 cleanupOutdatedCaches();
 
-// The array below is replaced by workbox-build at build time with the
-// list of files produced by `next export`. The id param is ignored so that
-// navigating to /entry/?id=123 still matches the cached /entry/ HTML.
-precacheAndRoute(self.__WB_MANIFEST, {
-  ignoreURLParametersMatching: [/^id$/],
-});
+precacheAndRoute(self.__WB_MANIFEST);
+
+const shell = createHandlerBoundToURL('/garden-journal/index.html');
+registerRoute(new NavigationRoute(shell, {
+  denylist: [/^\/_next\//, /\/api\//],
+}));
 
 self.addEventListener('install', () => {
   console.log('[SW] Installed');
