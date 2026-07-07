@@ -1,5 +1,6 @@
 import { rollup } from 'rollup';
 import { nodeResolve } from '@rollup/plugin-node-resolve';
+import replace from '@rollup/plugin-replace';
 import { injectManifest } from 'workbox-build';
 import { writeFileSync, unlinkSync } from 'fs';
 
@@ -25,7 +26,10 @@ try {
 
   const bundle = await rollup({
     input: INJECTED_TMP,
-    plugins: [nodeResolve()],
+    plugins: [
+      replace({ 'process.env.NODE_ENV': JSON.stringify('production'), preventAssignment: true }),
+      nodeResolve(),
+    ],
   });
 
   const { output } = await bundle.generate({ format: 'iife' });

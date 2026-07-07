@@ -158,6 +158,8 @@ export const db: Promise<GardenDB> =
     ? openGardenDB()
     : Promise.reject(new Error('IndexedDB is not available in this environment'))
 
+db.catch(() => {})
+
 async function useDb(database?: GardenDB): Promise<GardenDB> {
   return database ?? db
 }
