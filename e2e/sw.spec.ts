@@ -38,6 +38,13 @@ test('service worker is registered after page load', async ({ page }) => {
   })
   console.log('[SW debug] sw.js fetch:', JSON.stringify(swFetch))
 
+  // Check whether the shell URL the SW uses actually exists in the static export
+  const shellFetch = await page.evaluate(async () => {
+    const res = await fetch('/garden-journal/index.html')
+    return { status: res.status, ok: res.ok }
+  })
+  console.log('[SW debug] /garden-journal/index.html:', JSON.stringify(shellFetch))
+
   // Attempt an explicit registration to capture the exact JS error
   const regResult = await page.evaluate(async () => {
     try {
