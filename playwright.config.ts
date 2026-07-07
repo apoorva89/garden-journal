@@ -16,7 +16,11 @@ export default defineConfig({
     { name: 'webkit', use: { ...devices['iPhone 15'] } },
   ],
   webServer: {
-    command: 'npm run dev',
+    // CI: serve the production static export so tests run against what actually ships.
+    // Locally: use the dev server for fast iteration without a build step.
+    command: process.env.CI
+      ? 'npx serve out -l 3000 --no-copy'
+      : 'npm run dev',
     url: 'http://localhost:3000/garden-journal/journal',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
