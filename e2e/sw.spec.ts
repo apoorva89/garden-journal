@@ -21,16 +21,33 @@ test('service worker is registered after page load', async ({ page }) => {
   await page.goto(`${BASE}/journal/`)
   await page.waitForLoadState('networkidle')
 
-  // Check whether sw.js is reachable from the browser
+  // Check whether sw.js is reachable and is actually JavaScript (not an HTML fallback)
   const swFetch = await page.evaluate(async () => {
     try {
       const res = await fetch('/garden-journal/sw.js')
-      return { ok: res.ok, status: res.status, contentType: res.headers.get('content-type') }
+      const text = await res.text()
+      return {
+        ok: res.ok,
+        status: res.status,
+        contentType: res.headers.get('content-type'),
+        preview: text.slice(0, 200),
+      }
     } catch (e) {
       return { ok: false, error: String(e) }
     }
   })
   console.log('[SW debug] sw.js fetch:', JSON.stringify(swFetch))
+
+  // Attempt an explicit registration to capture the exact JS error
+  const regResult = await page.evaluate(async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/garden-journal/sw.js')
+      return { success: true, scope: reg.scope }
+    } catch (e) {
+      return { success: false, error: String(e) }
+    }
+  })
+  console.log('[SW debug] explicit register():', JSON.stringify(regResult))
 
   // Dump all registrations and their states
   const swInfo = await page.evaluate(async () => {
