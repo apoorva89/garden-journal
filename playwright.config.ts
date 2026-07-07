@@ -17,7 +17,8 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:3000',
+    url: 'http://localhost:3000/garden-journal/journal',
     reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
   },
 })
