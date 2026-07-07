@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test'
-
-const BASE = '/garden-journal'
+import { BASE_PATH as BASE } from '../base-path.mjs'
 
 test('redirects from / to /journal', async ({ page }) => {
   await page.goto(`${BASE}/`)

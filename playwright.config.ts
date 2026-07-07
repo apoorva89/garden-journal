@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { BASE_PATH } from './base-path.mjs'
 
 export default defineConfig({
   testDir: './e2e',
@@ -19,9 +20,9 @@ export default defineConfig({
     // CI: serve the production static export so tests run against what actually ships.
     // Locally: use the dev server for fast iteration without a build step.
     command: process.env.CI
-      ? 'mkdir -p .serve/garden-journal && cp -r out/. .serve/garden-journal/ && serve .serve -l 3000 --no-clipboard'
+      ? `mkdir -p .serve${BASE_PATH} && cp -r out/. .serve${BASE_PATH}/ && serve .serve -l 3000 --no-clipboard`
       : 'npm run dev',
-    url: 'http://localhost:3000/garden-journal/journal',
+    url: `http://localhost:3000${BASE_PATH}/journal`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

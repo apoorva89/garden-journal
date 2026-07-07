@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test'
-
-const BASE = '/garden-journal'
+import { BASE_PATH as BASE } from '../base-path.mjs'
 
 test('creates a journal entry and it appears in the feed', async ({ page }) => {
   await page.goto(`${BASE}/journal/new/`)
@@ -23,6 +22,6 @@ test('tapping an entry in the feed opens the detail view', async ({ page }) => {
   await expect(page).toHaveURL(`${BASE}/journal/`)
   await page.getByText(entryText).click()
 
-  await expect(page).toHaveURL(/\/garden-journal\/journal\/entry\//)
+  await expect(page).toHaveURL(new RegExp(BASE + '/journal/entry/'))
   await expect(page.getByPlaceholder('What happened in the garden today?')).toHaveValue(entryText)
 })
