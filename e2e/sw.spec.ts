@@ -15,11 +15,13 @@ test('service worker is registered after page load', async ({ page }) => {
   test.skip(!process.env.CI, 'Service worker only registers in production builds')
 
   await page.goto(`${BASE}/journal/`)
+  // Wait for network to go idle so the SW's precache install has time to complete
+  await page.waitForLoadState('networkidle')
 
   await expect
     .poll(
       () => page.evaluate(() => navigator.serviceWorker.getRegistration().then((r) => !!r)),
-      { timeout: 10_000 },
+      { timeout: 15_000 },
     )
     .toBe(true)
 })

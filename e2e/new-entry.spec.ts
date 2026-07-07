@@ -55,8 +55,10 @@ test('photos can be tagged with crop tags in a new entry', async ({ page }) => {
 })
 
 test('a crop created in one entry is available in the next', async ({ page }) => {
-  // Entry 1: create a crop, then cancel without saving the entry
-  await page.goto(`${BASE}/journal/new/`)
+  // Entry 1: navigate from /journal/ so Cancel (router.back) reliably returns there
+  await page.goto(`${BASE}/journal/`)
+  await page.getByRole('link', { name: 'New entry' }).click()
+  await expect(page).toHaveURL(`${BASE}/journal/new/`)
 
   await page.locator('input[type="file"]').setInputFiles({
     name: 'garden.png',
@@ -71,11 +73,13 @@ test('a crop created in one entry is available in the next', async ({ page }) =>
   await page.getByRole('button', { name: 'Add' }).click()
   await page.getByRole('button', { name: /Done/ }).click()
 
-  // Cancel the entry — createCropType already wrote to IndexedDB so Lavender persists
+  // Cancel — createCropType already wrote to IndexedDB so Lavender persists
   await page.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page).toHaveURL(`${BASE}/journal/`)
 
   // Entry 2: open a new entry and verify Lavender shows up in the tag sheet
-  await page.goto(`${BASE}/journal/new/`)
+  await page.getByRole('link', { name: 'New entry' }).click()
+  await expect(page).toHaveURL(`${BASE}/journal/new/`)
 
   await page.locator('input[type="file"]').setInputFiles({
     name: 'garden.png',
