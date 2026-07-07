@@ -14,9 +14,40 @@ test('navigator.serviceWorker is available on load', async ({ page }) => {
 test('service worker is registered after page load', async ({ page }) => {
   test.skip(!process.env.CI, 'Service worker only registers in production builds')
 
+  const browserLogs: string[] = []
+  page.on('console', (msg) => browserLogs.push(`[${msg.type()}] ${msg.text()}`))
+  page.on('pageerror', (err) => browserLogs.push(`[pageerror] ${err.message}`))
+
   await page.goto(`${BASE}/journal/`)
-  // Wait for network to go idle so the SW's precache install has time to complete
   await page.waitForLoadState('networkidle')
+
+  // Check whether sw.js is reachable from the browser
+  const swFetch = await page.evaluate(async () => {
+    try {
+      const res = await fetch('/garden-journal/sw.js')
+      return { ok: res.ok, status: res.status, contentType: res.headers.get('content-type') }
+    } catch (e) {
+      return { ok: false, error: String(e) }
+    }
+  })
+  console.log('[SW debug] sw.js fetch:', JSON.stringify(swFetch))
+
+  // Dump all registrations and their states
+  const swInfo = await page.evaluate(async () => {
+    const regs = await navigator.serviceWorker.getRegistrations()
+    return {
+      count: regs.length,
+      controller: navigator.serviceWorker.controller?.state ?? null,
+      registrations: regs.map((r) => ({
+        scope: r.scope,
+        installing: r.installing?.state ?? null,
+        waiting: r.waiting?.state ?? null,
+        active: r.active?.state ?? null,
+      })),
+    }
+  })
+  console.log('[SW debug] registrations:', JSON.stringify(swInfo))
+  console.log('[SW debug] browser logs:', browserLogs)
 
   await expect
     .poll(
