@@ -108,23 +108,23 @@ describe('getLatestPhotoByCropType', () => {
     const cropTypeId = 'ct-tomato'
 
     await createEntryPhoto(
-      { entryId: 'e1', dataUrl: 'data:older', cropTypeIds: [cropTypeId], createdAt: '2026-05-01T10:00:00Z' },
+      { entryId: 'e1', data: new Blob(['older']), cropTypeIds: [cropTypeId], createdAt: '2026-05-01T10:00:00Z' },
       db,
     )
     await createEntryPhoto(
-      { entryId: 'e2', dataUrl: 'data:newer', cropTypeIds: [cropTypeId], createdAt: '2026-06-15T10:00:00Z' },
+      { entryId: 'e2', data: new Blob(['newer']), cropTypeIds: [cropTypeId], createdAt: '2026-06-15T10:00:00Z' },
       db,
     )
 
     const photo = await getLatestPhotoByCropType(cropTypeId, db)
     expect(photo).not.toBeNull()
-    expect(photo!.dataUrl).toBe('data:newer')
+    expect(photo!.createdAt).toBe('2026-06-15T10:00:00Z')
   })
 
   it('returns null when no photos are tagged with that cropTypeId', async () => {
     const db = await freshDb()
     await createEntryPhoto(
-      { entryId: 'e1', dataUrl: 'data:other', cropTypeIds: ['ct-pepper'], createdAt: '2026-06-01T10:00:00Z' },
+      { entryId: 'e1', data: new Blob(['other']), cropTypeIds: ['ct-pepper'], createdAt: '2026-06-01T10:00:00Z' },
       db,
     )
     const photo = await getLatestPhotoByCropType('ct-nonexistent', db)
@@ -134,7 +134,7 @@ describe('getLatestPhotoByCropType', () => {
   it('ignores photos tagged with a different cropTypeId', async () => {
     const db = await freshDb()
     await createEntryPhoto(
-      { entryId: 'e1', dataUrl: 'data:other', cropTypeIds: ['ct-pepper'], createdAt: '2026-06-01T10:00:00Z' },
+      { entryId: 'e1', data: new Blob(['other']), cropTypeIds: ['ct-pepper'], createdAt: '2026-06-01T10:00:00Z' },
       db,
     )
     const photo = await getLatestPhotoByCropType('ct-tomato', db)

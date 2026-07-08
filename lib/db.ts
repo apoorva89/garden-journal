@@ -28,9 +28,27 @@ export interface CropInstance {
 export interface EntryPhoto {
   id: string
   entryId: string
-  dataUrl: string
+  data: Blob
   cropTypeIds: string[]
   createdAt: string
+}
+
+// Stored in IDB as ArrayBuffer (Blob IDB storage is unreliable in WebKit)
+interface StoredEntryPhoto {
+  id: string
+  entryId: string
+  data: ArrayBuffer
+  mimeType: string
+  cropTypeIds: string[]
+  createdAt: string
+}
+
+async function toStored(photo: EntryPhoto): Promise<StoredEntryPhoto> {
+  return { ...photo, data: await photo.data.arrayBuffer(), mimeType: photo.data.type || 'image/jpeg' }
+}
+
+function fromStored({ data, mimeType, ...rest }: StoredEntryPhoto): EntryPhoto {
+  return { ...rest, data: new Blob([data], { type: mimeType }) }
 }
 
 export interface JournalEntry {
@@ -92,7 +110,7 @@ interface GardenDBSchema extends DBSchema {
   }
   entryPhotos: {
     key: string
-    value: EntryPhoto
+    value: StoredEntryPhoto
     indexes: { 'by-entryId': string; 'by-cropTypeId': string }
   }
   cropEvents: {
@@ -246,17 +264,18 @@ export async function deleteJournalEntry(id: string, database?: GardenDB): Promi
 
 export async function createEntryPhoto(data: Omit<EntryPhoto, 'id'>, database?: GardenDB): Promise<EntryPhoto> {
   const d = await useDb(database)
-  const record: EntryPhoto = { ...data, id: nanoid() }
+  const record = await toStored({ ...data, id: nanoid() })
   await d.add('entryPhotos', record)
-  return record
+  return fromStored(record)
 }
 
 export async function getEntryPhotosByEntry(entryId: string, database?: GardenDB): Promise<EntryPhoto[]> {
-  return (await useDb(database)).getAllFromIndex('entryPhotos', 'by-entryId', entryId)
+  const records = await (await useDb(database)).getAllFromIndex('entryPhotos', 'by-entryId', entryId)
+  return records.map(fromStored)
 }
 
 export async function updateEntryPhoto(photo: EntryPhoto, database?: GardenDB): Promise<void> {
-  await (await useDb(database)).put('entryPhotos', photo)
+  await (await useDb(database)).put('entryPhotos', await toStored(photo) as StoredEntryPhoto)
 }
 
 export async function deleteEntryPhoto(id: string, database?: GardenDB): Promise<void> {
@@ -386,6 +405,7 @@ export async function getLatestPhotoByCropType(
   cropTypeId: string,
   database?: GardenDB,
 ): Promise<EntryPhoto | null> {
-  const photos = await (await useDb(database)).getAllFromIndex('entryPhotos', 'by-cropTypeId', cropTypeId)
-  return photos.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null
+  const records = await (await useDb(database)).getAllFromIndex('entryPhotos', 'by-cropTypeId', cropTypeId)
+  const latest = records.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+  return latest ? fromStored(latest) : null
 }
