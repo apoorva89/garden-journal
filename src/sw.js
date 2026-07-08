@@ -25,7 +25,7 @@ self.addEventListener('activate', () => {
 self.addEventListener('fetch', (event) => {
   if (!event.request.url.includes('.txt')) return;
   event.waitUntil(
-    caches.match(event.request).then((cached) =>
+    caches.match(event.request, { ignoreSearch: true }).then((cached) =>
       self.clients.matchAll({ type: 'window' }).then((clients) =>
         clients.forEach((c) =>
           c.postMessage({
