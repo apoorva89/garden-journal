@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import BlobImage from '@/components/BlobImage'
 import type { JournalEntry, EntryPhoto } from '@/lib/db'
 
 interface PhotoStripProps {
@@ -11,8 +12,7 @@ function PhotoStrip({ photos }: PhotoStripProps) {
   if (photos.length === 1) {
     return (
       <div className="mt-3 rounded-xl overflow-hidden" style={{ height: 200 }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photos[0].dataUrl} alt="" className="w-full h-full object-cover" />
+        <BlobImage blob={photos[0].data} alt="" className="w-full h-full object-cover" />
       </div>
     )
   }
@@ -22,8 +22,7 @@ function PhotoStrip({ photos }: PhotoStripProps) {
       <div className="mt-3 flex gap-1 rounded-xl overflow-hidden" style={{ height: 160 }}>
         {photos.map((p) => (
           <div key={p.id} className="flex-1 overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.dataUrl} alt="" className="w-full h-full object-cover" />
+            <BlobImage blob={p.data} alt="" className="w-full h-full object-cover" />
           </div>
         ))}
       </div>
@@ -33,14 +32,12 @@ function PhotoStrip({ photos }: PhotoStripProps) {
   return (
     <div className="mt-3 flex gap-1 rounded-xl overflow-hidden" style={{ height: 200 }}>
       <div className="flex-1 overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photos[0].dataUrl} alt="" className="w-full h-full object-cover" />
+        <BlobImage blob={photos[0].data} alt="" className="w-full h-full object-cover" />
       </div>
       <div className="flex flex-col gap-1 overflow-hidden" style={{ width: '38%' }}>
         {photos.slice(1, 3).map((p) => (
           <div key={p.id} className="flex-1 overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.dataUrl} alt="" className="w-full h-full object-cover" />
+            <BlobImage blob={p.data} alt="" className="w-full h-full object-cover" />
           </div>
         ))}
       </div>

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import BlobImage from '@/components/BlobImage'
 import type { CropType, EntryPhoto } from '@/lib/db'
 
 const PALETTE = [
@@ -33,8 +34,7 @@ export default function CropTypeCard({ cropType, photo }: Props) {
       style={{ aspectRatio: '4/3' }}
     >
       {photo ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={photo.dataUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        <BlobImage blob={photo.data} alt="" className="absolute inset-0 w-full h-full object-cover" />
       ) : (
         <div className="absolute inset-0" style={{ backgroundColor: bg }} />
       )}

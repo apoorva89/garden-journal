@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getJournalEntryById, getEntryPhotosByEntry, updateJournalEntry, createEntryPhoto, updateEntryPhoto, deleteEntryPhoto } from '@/lib/db'
+import { resizeToBlob } from '@/lib/resizeImage'
+import BlobImage from '@/components/BlobImage'
 import CropTagSheet from '@/components/journal/CropTagSheet'
 import type { JournalEntry } from '@/lib/db'
 
@@ -11,28 +13,9 @@ function todayStr(): string {
   return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-')
 }
 
-async function resizeToDataUrl(file: File, maxPx = 1200): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      const { width, height } = img
-      const scale = Math.min(1, maxPx / Math.max(width, height))
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.round(width * scale)
-      canvas.height = Math.round(height * scale)
-      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
-      resolve(canvas.toDataURL('image/jpeg', 0.85))
-    }
-    img.onerror = reject
-    img.src = url
-  })
-}
-
 interface PhotoItem {
   id?: string
-  dataUrl: string
+  data: Blob
   cropTypeIds: string[]
   createdAt?: string
 }
@@ -65,7 +48,7 @@ export default function EntryDetail() {
       setText(e.text)
       setNextSeasonNote(e.nextSeasonNote)
       setNextSeasonOpen(!!e.nextSeasonNote)
-      setPhotos(ps.map((p) => ({ id: p.id, dataUrl: p.dataUrl, cropTypeIds: p.cropTypeIds, createdAt: p.createdAt })))
+      setPhotos(ps.map((p) => ({ id: p.id, data: p.data, cropTypeIds: p.cropTypeIds, createdAt: p.createdAt })))
       setLoading(false)
     }
     load()
@@ -75,7 +58,7 @@ export default function EntryDetail() {
     const files = Array.from(e.target.files ?? [])
     if (files.length === 0) return
     const newItems = await Promise.all(
-      files.map(async (file) => ({ dataUrl: await resizeToDataUrl(file), cropTypeIds: [] as string[] })),
+      files.map(async (file) => ({ data: await resizeToBlob(file), cropTypeIds: [] as string[] })),
     )
     setPhotos((prev) => [...prev, ...newItems])
     e.target.value = ''
@@ -104,10 +87,10 @@ export default function EntryDetail() {
       const photoIds: string[] = []
       for (const photo of photos) {
         if (photo.id) {
-          await updateEntryPhoto({ id: photo.id, entryId: entry.id, dataUrl: photo.dataUrl, cropTypeIds: photo.cropTypeIds, createdAt: photo.createdAt ?? now })
+          await updateEntryPhoto({ id: photo.id, entryId: entry.id, data: photo.data, cropTypeIds: photo.cropTypeIds, createdAt: photo.createdAt ?? now })
           photoIds.push(photo.id)
         } else {
-          const ep = await createEntryPhoto({ entryId: entry.id, dataUrl: photo.dataUrl, cropTypeIds: photo.cropTypeIds, createdAt: now })
+          const ep = await createEntryPhoto({ entryId: entry.id, data: photo.data, cropTypeIds: photo.cropTypeIds, createdAt: now })
           photoIds.push(ep.id)
         }
       }
@@ -171,8 +154,7 @@ export default function EntryDetail() {
             {photos.map((photo, i) => (
               <div key={i} className="flex-none flex flex-col items-center gap-1 relative">
                 <button onClick={() => setTagSheetIndex(i)} className="active:opacity-70">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={photo.dataUrl} alt="" className="w-20 h-20 object-cover rounded-xl" />
+                  <BlobImage blob={photo.data} alt="" className="w-20 h-20 object-cover rounded-xl" />
                 </button>
                 <button
                   onClick={() => removePhoto(i)}

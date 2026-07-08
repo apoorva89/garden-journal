@@ -3,6 +3,8 @@
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createEntryPhoto, createJournalEntry, updateJournalEntry } from '@/lib/db'
+import { resizeToBlob } from '@/lib/resizeImage'
+import BlobImage from '@/components/BlobImage'
 import CropTagSheet from '@/components/journal/CropTagSheet'
 
 function todayStr(): string {
@@ -14,28 +16,8 @@ function todayStr(): string {
   ].join('-')
 }
 
-async function resizeToDataUrl(file: File, maxPx = 1200): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      const { width, height } = img
-      const scale = Math.min(1, maxPx / Math.max(width, height))
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.round(width * scale)
-      canvas.height = Math.round(height * scale)
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      resolve(canvas.toDataURL('image/jpeg', 0.85))
-    }
-    img.onerror = reject
-    img.src = url
-  })
-}
-
 interface LocalPhoto {
-  dataUrl: string
+  data: Blob
   label: string
   cropTypeIds: string[]
 }
@@ -57,7 +39,7 @@ export default function NewEntryPage() {
       const base = photos.length
       const newPhotos = await Promise.all(
         files.map(async (file, i) => ({
-          dataUrl: await resizeToDataUrl(file),
+          data: await resizeToBlob(file),
           label: `Photo ${base + i + 1}`,
           cropTypeIds: [] as string[],
         })),
@@ -93,7 +75,7 @@ export default function NewEntryPage() {
       for (const photo of photos) {
         const ep = await createEntryPhoto({
           entryId: entry.id,
-          dataUrl: photo.dataUrl,
+          data: photo.data,
           cropTypeIds: photo.cropTypeIds,
           createdAt: now,
         })
@@ -161,9 +143,8 @@ export default function NewEntryPage() {
                 onClick={() => setTagSheetIndex(i)}
                 className="flex-none flex flex-col items-center gap-1 active:opacity-70"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.dataUrl}
+                <BlobImage
+                  blob={photo.data}
                   alt={photo.label}
                   className="w-20 h-20 object-cover rounded-xl"
                 />
