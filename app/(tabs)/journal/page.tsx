@@ -69,6 +69,12 @@ export default function JournalPage() {
       <EntryFeed entries={entries} photosByEntry={photosByEntry} />
       <Link
         href="/journal/new"
+        onClick={(e) => {
+          if (!navigator.onLine) {
+            e.preventDefault();
+            window.location.assign((e.currentTarget as HTMLAnchorElement).href);
+          }
+        }}
         className="fixed bottom-20 right-4 w-14 h-14 bg-terra rounded-full flex items-center justify-center text-surface text-3xl shadow-lg active:scale-95 transition-transform z-10"
         aria-label="New entry"
       >

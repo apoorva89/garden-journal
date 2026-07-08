@@ -5,7 +5,9 @@ import { registerRoute, NavigationRoute } from 'workbox-routing';
 clientsClaim();
 cleanupOutdatedCaches();
 
-precacheAndRoute(self.__WB_MANIFEST);
+precacheAndRoute(self.__WB_MANIFEST, {
+  ignoreURLParametersMatching: [/^id$/, /^_rsc$/],
+});
 
 const shell = createHandlerBoundToURL(__BASE_PATH__ + '/index.html');
 registerRoute(new NavigationRoute(shell, {
@@ -18,25 +20,4 @@ self.addEventListener('install', () => {
 
 self.addEventListener('activate', () => {
   console.log('[SW] Activated');
-});
-
-// Debug: log every .txt fetch and every navigate request with cache-hit status.
-self.addEventListener('fetch', (event) => {
-  const isNavigate = event.request.mode === 'navigate';
-  const isTxt = event.request.url.includes('.txt');
-  if (!isNavigate && !isTxt) return;
-  event.waitUntil(
-    caches.match(event.request, { ignoreSearch: true }).then((cached) =>
-      self.clients.matchAll({ type: 'window' }).then((clients) =>
-        clients.forEach((c) =>
-          c.postMessage({
-            type: 'SW_DEBUG',
-            url: event.request.url,
-            cached: !!cached,
-            mode: event.request.mode,
-          })
-        )
-      )
-    )
-  );
 });
