@@ -19,3 +19,22 @@ self.addEventListener('install', () => {
 self.addEventListener('activate', () => {
   console.log('[SW] Activated');
 });
+
+// Debug: log every .txt fetch with cache-hit status so we can compare
+// the requested URL against what is actually precached.
+self.addEventListener('fetch', (event) => {
+  if (!event.request.url.includes('.txt')) return;
+  event.waitUntil(
+    caches.match(event.request).then((cached) =>
+      self.clients.matchAll({ type: 'window' }).then((clients) =>
+        clients.forEach((c) =>
+          c.postMessage({
+            type: 'SW_DEBUG',
+            url: event.request.url,
+            cached: !!cached,
+          })
+        )
+      )
+    )
+  );
+});
