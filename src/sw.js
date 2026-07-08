@@ -20,10 +20,11 @@ self.addEventListener('activate', () => {
   console.log('[SW] Activated');
 });
 
-// Debug: log every .txt fetch with cache-hit status so we can compare
-// the requested URL against what is actually precached.
+// Debug: log every .txt fetch and every navigate request with cache-hit status.
 self.addEventListener('fetch', (event) => {
-  if (!event.request.url.includes('.txt')) return;
+  const isNavigate = event.request.mode === 'navigate';
+  const isTxt = event.request.url.includes('.txt');
+  if (!isNavigate && !isTxt) return;
   event.waitUntil(
     caches.match(event.request, { ignoreSearch: true }).then((cached) =>
       self.clients.matchAll({ type: 'window' }).then((clients) =>
@@ -32,6 +33,7 @@ self.addEventListener('fetch', (event) => {
             type: 'SW_DEBUG',
             url: event.request.url,
             cached: !!cached,
+            mode: event.request.mode,
           })
         )
       )

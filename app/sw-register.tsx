@@ -5,6 +5,7 @@ import { BASE_PATH } from '../base-path.mjs';
 interface SwMsg {
   url: string;
   cached: boolean;
+  mode: string;
 }
 
 export default function ServiceWorkerRegistration() {
@@ -20,7 +21,7 @@ export default function ServiceWorkerRegistration() {
       const path = (() => {
         try { return new URL(event.data.url).pathname; } catch { return event.data.url; }
       })();
-      setMsgs((prev) => [...prev.slice(-29), { url: path, cached: event.data.cached }]);
+      setMsgs((prev) => [...prev.slice(-29), { url: path, cached: event.data.cached, mode: event.data.mode }]);
     };
 
     navigator.serviceWorker?.addEventListener('message', handler);
@@ -57,7 +58,7 @@ export default function ServiceWorkerRegistration() {
       </div>
       {msgs.map((m, i) => (
         <div key={i} style={{ color: m.cached ? '#4ade80' : '#f87171', wordBreak: 'break-all' }}>
-          {m.cached ? '✓' : '✗'} {m.url}
+          {m.cached ? '✓' : '✗'} [{m.mode}] {m.url}
         </div>
       ))}
     </div>
