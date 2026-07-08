@@ -8,5 +8,6 @@ export default function ServiceWorkerRegistration() {
       navigator.serviceWorker.register(BASE_PATH + '/sw.js');
     }
   }, []);
+
   return null;
 }

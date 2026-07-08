@@ -62,6 +62,12 @@ export default function EntryCard({ entry, photos }: Props) {
   return (
     <Link
       href={`/journal/entry?id=${entry.id}`}
+      onClick={(e) => {
+        if (!navigator.onLine) {
+          e.preventDefault();
+          window.location.assign((e.currentTarget as HTMLAnchorElement).href);
+        }
+      }}
       className="block mx-4 mb-4 bg-surface rounded-2xl p-4 active:opacity-80"
       style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
     >

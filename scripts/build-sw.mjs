@@ -17,6 +17,7 @@ try {
     globDirectory: 'out',
     globPatterns: [
       '**/*.html',
+      '**/*.txt',
       '_next/static/**/*.{js,css}',
       '**/*.{png,svg,ico,webp}',
       '**/*.{woff,woff2}',

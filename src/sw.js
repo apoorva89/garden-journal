@@ -5,7 +5,9 @@ import { registerRoute, NavigationRoute } from 'workbox-routing';
 clientsClaim();
 cleanupOutdatedCaches();
 
-precacheAndRoute(self.__WB_MANIFEST);
+precacheAndRoute(self.__WB_MANIFEST, {
+  ignoreURLParametersMatching: [/^id$/, /^_rsc$/],
+});
 
 const shell = createHandlerBoundToURL(__BASE_PATH__ + '/index.html');
 registerRoute(new NavigationRoute(shell, {
