@@ -3,6 +3,7 @@ import { nodeResolve } from '@rollup/plugin-node-resolve';
 import replace from '@rollup/plugin-replace';
 import { injectManifest } from 'workbox-build';
 import { writeFileSync, unlinkSync } from 'fs';
+import { BASE_PATH } from '../base-path.mjs';
 
 // Inject first into a temp file, then bundle. This ensures self.__WB_MANIFEST
 // appears exactly once when workbox-build scans src/sw.js, and is already
@@ -21,13 +22,13 @@ try {
       '**/*.{woff,woff2}',
       'manifest.json',
     ],
-    modifyURLPrefix: { '': '/garden-journal/' },
+    modifyURLPrefix: { '': BASE_PATH + '/' },
   });
 
   const bundle = await rollup({
     input: INJECTED_TMP,
     plugins: [
-      replace({ 'process.env.NODE_ENV': JSON.stringify('production'), preventAssignment: true }),
+      replace({ 'process.env.NODE_ENV': JSON.stringify('production'), __BASE_PATH__: JSON.stringify(BASE_PATH), preventAssignment: true }),
       nodeResolve(),
     ],
   });

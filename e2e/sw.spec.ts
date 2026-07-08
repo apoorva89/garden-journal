@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test'
-
-const BASE = '/garden-journal'
+import { BASE_PATH as BASE } from '../base-path.mjs'
 
 test('navigator.serviceWorker is available on load', async ({ page }) => {
   await page.goto(`${BASE}/journal/`)

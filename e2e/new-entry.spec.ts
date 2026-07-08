@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test'
-
-const BASE = '/garden-journal'
+import { BASE_PATH as BASE } from '../base-path.mjs'
 
 // Minimal 1×1 PNG — valid image for file input tests
 const TINY_PNG = Buffer.from(

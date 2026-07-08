@@ -7,7 +7,7 @@ cleanupOutdatedCaches();
 
 precacheAndRoute(self.__WB_MANIFEST);
 
-const shell = createHandlerBoundToURL('/garden-journal/index.html');
+const shell = createHandlerBoundToURL(__BASE_PATH__ + '/index.html');
 registerRoute(new NavigationRoute(shell, {
   denylist: [/^\/_next\//, /\/api\//],
 }));
