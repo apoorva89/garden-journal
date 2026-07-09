@@ -54,11 +54,12 @@ test('selecting a crop from the dropdown links to the existing crop type', async
 
 test('cancelling returns to the crops list without saving', async ({ page }) => {
   await page.goto(`${BASE}/crops/new/`)
-  await page.getByPlaceholder('e.g. Tomato').fill('Cancelled Crop')
+  await page.getByPlaceholder('e.g. Tomato').fill('Tomato')
+  await page.getByRole('button', { name: /Create "Tomato"/ }).click()
   await page.getByRole('button', { name: 'Cancel' }).click()
 
   await expect(page).toHaveURL(`${BASE}/crops/`)
-  await expect(page.getByText('Cancelled Crop')).not.toBeVisible()
+  await expect(page.getByText('Tomato')).not.toBeVisible()
 })
 
 test('save button is disabled until nursery name is filled', async ({ page }) => {
