@@ -55,7 +55,7 @@ test('selecting a crop from the dropdown links to the existing crop type', async
 test('cancelling returns to the crops list without saving', async ({ page }) => {
   await page.goto(`${BASE}/crops/new/`)
   await page.getByPlaceholder('e.g. Tomato').fill('Tomato')
-  await page.getByRole('button', { name: /Create "Tomato"/ }).click()
+  await page.getByRole('button', { name: /Create/ }).click()
   await page.getByRole('button', { name: 'Cancel' }).click()
 
   await expect(page).toHaveURL(`${BASE}/crops/`)
@@ -68,6 +68,7 @@ test('save button is disabled until nursery name is filled', async ({ page }) =>
   // Source defaults to Nursery — save should be disabled with no nursery name
   await expect(page.getByRole('button', { name: 'Save Crop' })).toBeDisabled()
 
-  await page.getByPlaceholder('Nursery name').fill('Green Thumb Nursery')
+  await page.getByPlaceholder('Nursery name').click()
+  await page.getByPlaceholder('Nursery name').pressSequentially('Green Thumb Nursery')
   await expect(page.getByRole('button', { name: 'Save Crop' })).toBeEnabled()
 })
