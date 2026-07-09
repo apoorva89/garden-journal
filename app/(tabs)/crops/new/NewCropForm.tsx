@@ -109,7 +109,7 @@ export default function NewCropForm() {
                 onFocus={() => setShowSuggestions(true)}
                 onBlur={() => setShowSuggestions(false)}
                 placeholder="e.g. Tomato"
-                className="w-full rounded-xl border border-mushroom/30 bg-cream px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-leaf"
+                className="w-full rounded-xl border border-mushroom/30 bg-cream px-3 py-2.5 text-base text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-leaf"
               />
               {showSuggestions && trimmed.length > 0 && (
                 <ul className="absolute z-20 mt-1 w-full rounded-xl border border-mushroom/20 bg-surface shadow-lg overflow-hidden">
@@ -150,7 +150,7 @@ export default function NewCropForm() {
               value={variety}
               onChange={(e) => setVariety(e.target.value)}
               placeholder="e.g. Sungold"
-              className="w-full rounded-xl border border-mushroom/30 bg-cream px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-leaf"
+              className="w-full rounded-xl border border-mushroom/30 bg-cream px-3 py-2.5 text-base text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-leaf"
             />
           </div>
 
