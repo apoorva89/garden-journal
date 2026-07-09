@@ -31,7 +31,7 @@ export default function CropDetail() {
   return (
     <div className="px-4 pt-5">
       <button
-        onClick={() => router.back()}
+        onClick={() => router.push('/crops')}
         className="text-sm text-mushroom mb-4 block"
       >
         ← Back
