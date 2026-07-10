@@ -78,6 +78,7 @@ export default function NewEntryPage() {
           data: photo.data,
           cropTypeIds: photo.cropTypeIds,
           createdAt: now,
+          entryDate: date,
         })
         photoIds.push(ep.id)
       }

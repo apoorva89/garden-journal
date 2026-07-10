@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { getJournalEntryById, getEntryPhotosByEntry, updateJournalEntry, createEntryPhoto, updateEntryPhoto, deleteEntryPhoto } from '@/lib/db'
+import { getJournalEntryById, getEntryPhotosByEntry, updateJournalEntryAndPhotoDates, createEntryPhoto, updateEntryPhoto, deleteEntryPhoto } from '@/lib/db'
 import { resizeToBlob } from '@/lib/resizeImage'
 import BlobImage from '@/components/BlobImage'
 import CropTagSheet from '@/components/journal/CropTagSheet'
@@ -87,15 +87,15 @@ export default function EntryDetail() {
       const photoIds: string[] = []
       for (const photo of photos) {
         if (photo.id) {
-          await updateEntryPhoto({ id: photo.id, entryId: entry.id, data: photo.data, cropTypeIds: photo.cropTypeIds, createdAt: photo.createdAt ?? now })
+          await updateEntryPhoto({ id: photo.id, entryId: entry.id, data: photo.data, cropTypeIds: photo.cropTypeIds, createdAt: photo.createdAt ?? now, entryDate: date })
           photoIds.push(photo.id)
         } else {
-          const ep = await createEntryPhoto({ entryId: entry.id, data: photo.data, cropTypeIds: photo.cropTypeIds, createdAt: now })
+          const ep = await createEntryPhoto({ entryId: entry.id, data: photo.data, cropTypeIds: photo.cropTypeIds, createdAt: now, entryDate: date })
           photoIds.push(ep.id)
         }
       }
 
-      await updateJournalEntry({ ...entry, date, yearMonth: date.slice(0, 7), text, nextSeasonNote, photoIds, needsSync: 1 })
+      await updateJournalEntryAndPhotoDates({ ...entry, date, yearMonth: date.slice(0, 7), text, nextSeasonNote, photoIds, needsSync: 1 })
       router.back()
     } finally {
       setSaving(false)
