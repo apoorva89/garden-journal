@@ -3,6 +3,7 @@ import { BASE_PATH as BASE } from '../base-path.mjs'
 
 test('shows empty state when no crops exist', async ({ page }) => {
   await page.goto(`${BASE}/crops/`)
+  await page.getByTestId('loading').waitFor({ state: 'detached' })
   await expect(page.getByText('No crops yet')).toBeVisible()
 })
 
@@ -14,6 +15,7 @@ test('a saved crop appears in the crops list', async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`${BASE}/crops/detail`))
 
   await page.goto(`${BASE}/crops/`)
+  await page.getByTestId('loading').waitFor({ state: 'detached' })
   await expect(page.getByText('Rosemary')).toBeVisible()
 })
 
@@ -25,6 +27,7 @@ test('tapping a crop card navigates to the detail page', async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`${BASE}/crops/detail`))
 
   await page.goto(`${BASE}/crops/`)
+  await page.getByTestId('loading').waitFor({ state: 'detached' })
   await page.getByText('Lavender').click()
 
   await expect(page).toHaveURL(new RegExp(`${BASE}/crops/detail`))
