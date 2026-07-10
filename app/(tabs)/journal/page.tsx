@@ -6,6 +6,7 @@ import CalendarStrip from '@/components/journal/CalendarStrip'
 import EntryFeed from '@/components/journal/EntryFeed'
 import { getEntriesByMonth, getEntryPhotosByEntry } from '@/lib/db'
 import type { JournalEntry, EntryPhoto } from '@/lib/db'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 export default function JournalPage() {
   const now = new Date()
@@ -14,11 +15,13 @@ export default function JournalPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [photosByEntry, setPhotosByEntry] = useState<Record<string, EntryPhoto[]>>({})
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     let cancelled = false
 
     async function load() {
+      setLoaded(false)
       const es = await getEntriesByMonth(displayYear, displayMonth)
       if (cancelled) return
       setEntries(es)
@@ -32,6 +35,7 @@ export default function JournalPage() {
       )
       if (cancelled) return
       setPhotosByEntry(map)
+      setLoaded(true)
     }
 
     load()
@@ -58,6 +62,7 @@ export default function JournalPage() {
 
   return (
     <div className="relative">
+      {!loaded && <LoadingSpinner />}
       <CalendarStrip
         year={displayYear}
         month={displayMonth}

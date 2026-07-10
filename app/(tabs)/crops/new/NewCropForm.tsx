@@ -18,11 +18,13 @@ export default function NewCropForm() {
   const [nurseryName, setNurseryName] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [formReady, setFormReady] = useState(false)
 
   useEffect(() => {
     getAllCropTypes()
       .then(setAllCropTypes)
       .catch(() => setLoadError(true))
+      .finally(() => setFormReady(true))
   }, [])
 
   const trimmed = query.trim()
@@ -84,7 +86,7 @@ export default function NewCropForm() {
 
   return (
     <>
-      <div className="pb-24 min-h-screen bg-surface">
+      <div data-testid={formReady ? 'form-ready' : undefined} className="pb-24 min-h-screen bg-surface">
         <div className="px-4 pt-5 pb-3">
           <h1 className="text-base font-semibold text-ink">New Crop</h1>
         </div>

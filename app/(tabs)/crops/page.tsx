@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import CropTypeCard from '@/components/crops/CropTypeCard'
+import LoadingSpinner from '@/components/LoadingSpinner'
 import { getAllCropTypes, getLatestPhotoByCropType } from '@/lib/db'
 import type { CropType, EntryPhoto } from '@/lib/db'
 
@@ -36,7 +37,9 @@ export default function CropsPage() {
 
   return (
     <div className="relative min-h-screen">
-      {loaded && cropTypes.length === 0 ? (
+      {!loaded ? (
+        <LoadingSpinner />
+      ) : cropTypes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-32 text-muted px-8 text-center">
           <span className="text-5xl mb-4" aria-hidden>🌱</span>
           <p className="text-sm font-medium text-ink">No crops yet</p>

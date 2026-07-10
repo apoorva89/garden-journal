@@ -9,6 +9,7 @@ test('creates a journal entry and it appears in the feed', async ({ page }) => {
   await page.getByRole('button', { name: 'Save entry' }).click()
 
   await expect(page).toHaveURL(`${BASE}/journal/`)
+  await page.getByTestId('loading').waitFor({ state: 'detached' })
   await expect(page.getByText(entryText)).toBeVisible()
 })
 
@@ -20,6 +21,7 @@ test('tapping an entry in the feed opens the detail view', async ({ page }) => {
   await page.getByRole('button', { name: 'Save entry' }).click()
 
   await expect(page).toHaveURL(`${BASE}/journal/`)
+  await page.getByTestId('loading').waitFor({ state: 'detached' })
   await page.getByText(entryText).click()
 
   await expect(page).toHaveURL(new RegExp(BASE + '/journal/entry/'))
