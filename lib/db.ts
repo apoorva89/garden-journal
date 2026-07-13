@@ -31,6 +31,7 @@ export interface EntryPhoto {
   data: Blob
   cropTypeIds: string[]
   createdAt: string
+  entryDate?: string
 }
 
 // Stored in IDB as ArrayBuffer (Blob IDB storage is unreliable in WebKit)
@@ -41,6 +42,7 @@ interface StoredEntryPhoto {
   mimeType: string
   cropTypeIds: string[]
   createdAt: string
+  entryDate?: string
 }
 
 async function toStored(photo: EntryPhoto): Promise<StoredEntryPhoto> {
@@ -140,33 +142,29 @@ export async function openGardenDB(idbFactory?: IDBFactory): Promise<GardenDB> {
     ;(globalThis as Record<string, unknown>)['indexedDB'] = idbFactory
   }
 
-  return openDB<GardenDBSchema>('garden-journal', 2, {
-    upgrade(database, oldVersion) {
-      if (oldVersion < 1) {
-        database.createObjectStore('cropTypes', { keyPath: 'id' })
+  return openDB<GardenDBSchema>('garden-journal', 1, {
+    upgrade(database) {
+      database.createObjectStore('cropTypes', { keyPath: 'id' })
 
-        const instances = database.createObjectStore('cropInstances', { keyPath: 'id' })
-        instances.createIndex('by-cropTypeId', 'cropTypeId')
+      const instances = database.createObjectStore('cropInstances', { keyPath: 'id' })
+      instances.createIndex('by-cropTypeId', 'cropTypeId')
 
-        const entries = database.createObjectStore('journalEntries', { keyPath: 'id' })
-        entries.createIndex('by-yearMonth', 'yearMonth')
-        entries.createIndex('by-needsSync', 'needsSync')
+      const entries = database.createObjectStore('journalEntries', { keyPath: 'id' })
+      entries.createIndex('by-yearMonth', 'yearMonth')
+      entries.createIndex('by-needsSync', 'needsSync')
 
-        const events = database.createObjectStore('cropEvents', { keyPath: 'id' })
-        events.createIndex('by-cropInstanceId', 'cropInstanceId')
-        events.createIndex('by-type', 'type')
+      const photos = database.createObjectStore('entryPhotos', { keyPath: 'id' })
+      photos.createIndex('by-entryId', 'entryId')
+      photos.createIndex('by-cropTypeId', 'cropTypeIds', { multiEntry: true })
 
-        const tasks = database.createObjectStore('careTasks', { keyPath: 'id' })
-        tasks.createIndex('by-cropInstanceId', 'cropInstanceId')
+      const events = database.createObjectStore('cropEvents', { keyPath: 'id' })
+      events.createIndex('by-cropInstanceId', 'cropInstanceId')
+      events.createIndex('by-type', 'type')
 
-        database.createObjectStore('settings')
-      }
+      const tasks = database.createObjectStore('careTasks', { keyPath: 'id' })
+      tasks.createIndex('by-cropInstanceId', 'cropInstanceId')
 
-      if (oldVersion < 2) {
-        const photos = database.createObjectStore('entryPhotos', { keyPath: 'id' })
-        photos.createIndex('by-entryId', 'entryId')
-        photos.createIndex('by-cropTypeId', 'cropTypeIds', { multiEntry: true })
-      }
+      database.createObjectStore('settings')
     },
   })
 }
@@ -408,4 +406,37 @@ export async function getLatestPhotoByCropType(
   const records = await (await useDb(database)).getAllFromIndex('entryPhotos', 'by-cropTypeId', cropTypeId)
   const latest = records.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
   return latest ? fromStored(latest) : null
+}
+
+export async function getLatestPhotoByCropTypeAndYear(
+  cropTypeId: string,
+  year: number,
+  database?: GardenDB,
+): Promise<EntryPhoto | null> {
+  const records = await (await useDb(database)).getAllFromIndex('entryPhotos', 'by-cropTypeId', cropTypeId)
+  const yearStr = String(year)
+  const filtered = records.filter((r) => r.entryDate && r.entryDate.slice(0, 4) === yearStr)
+  const latest = filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
+  return latest ? fromStored(latest) : null
+}
+
+export async function updateJournalEntryAndPhotoDates(entry: JournalEntry, database?: GardenDB): Promise<void> {
+  const d = await useDb(database)
+  const tx = d.transaction(['journalEntries', 'entryPhotos'], 'readwrite')
+  const entryStore = tx.objectStore('journalEntries')
+  const photoStore = tx.objectStore('entryPhotos')
+  await entryStore.put(entry)
+  for (const photoId of entry.photoIds) {
+    const stored = await photoStore.get(photoId)
+    if (stored) await photoStore.put({ ...stored, entryDate: entry.date })
+  }
+  await tx.done
+}
+
+export async function addLessonToCropType(cropTypeId: string, text: string, database?: GardenDB): Promise<void> {
+  const d = await useDb(database)
+  const cropType = await d.get('cropTypes', cropTypeId)
+  if (!cropType) throw new Error(`CropType not found: ${cropTypeId}`)
+  const lesson: Lesson = { id: nanoid(), text, createdAt: new Date().toISOString() }
+  await d.put('cropTypes', { ...cropType, lessons: [...cropType.lessons, lesson] })
 }

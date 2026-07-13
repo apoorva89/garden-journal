@@ -4,14 +4,18 @@ import {
   openGardenDB,
   createJournalEntry,
   updateJournalEntry,
+  updateJournalEntryAndPhotoDates,
   createEntryPhoto,
+  getEntryPhotosByEntry,
   createCropType,
   createCropInstance,
   createCropEvent,
   getEntriesByMonth,
   getUnsyncedEntries,
   getLatestPhotoByCropType,
+  getLatestPhotoByCropTypeAndYear,
   getOpenProblemsByType,
+  addLessonToCropType,
 } from '../db'
 
 function freshDb() {
@@ -205,5 +209,119 @@ describe('getOpenProblemsByType', () => {
     const problems = await getOpenProblemsByType(cropType.id, db)
     expect(problems).toHaveLength(1)
     expect(problems[0].id).toBe(openProblem.id)
+  })
+})
+
+// ── addLessonToCropType ───────────────────────────────────────────────────────
+
+describe('addLessonToCropType', () => {
+  it('appends a lesson to the crop type', async () => {
+    const db = await freshDb()
+    const cropType = await createCropType({ name: 'Tomatoes', lessons: [] }, db)
+    await addLessonToCropType(cropType.id, 'Water deeply, not often', db)
+    const updated = await db.get('cropTypes', cropType.id)
+    expect(updated!.lessons).toHaveLength(1)
+    expect(updated!.lessons[0].text).toBe('Water deeply, not often')
+    expect(updated!.lessons[0].id).toBeTruthy()
+    expect(updated!.lessons[0].createdAt).toBeTruthy()
+  })
+
+  it('appends multiple lessons in order', async () => {
+    const db = await freshDb()
+    const cropType = await createCropType({ name: 'Peppers', lessons: [] }, db)
+    await addLessonToCropType(cropType.id, 'First lesson', db)
+    await addLessonToCropType(cropType.id, 'Second lesson', db)
+    const updated = await db.get('cropTypes', cropType.id)
+    expect(updated!.lessons).toHaveLength(2)
+    expect(updated!.lessons[0].text).toBe('First lesson')
+    expect(updated!.lessons[1].text).toBe('Second lesson')
+  })
+
+  it('throws when cropTypeId does not exist', async () => {
+    const db = await freshDb()
+    await expect(addLessonToCropType('nonexistent', 'text', db)).rejects.toThrow('CropType not found')
+  })
+})
+
+// ── getLatestPhotoByCropTypeAndYear ───────────────────────────────────────────
+
+describe('getLatestPhotoByCropTypeAndYear', () => {
+  it('returns the latest photo tagged with the cropTypeId in the given year', async () => {
+    const db = await freshDb()
+    const cropTypeId = 'ct-tomato'
+    await createEntryPhoto(
+      { entryId: 'e1', data: new Blob(['older']), cropTypeIds: [cropTypeId], createdAt: '2025-06-01T10:00:00Z', entryDate: '2025-06-01' },
+      db,
+    )
+    await createEntryPhoto(
+      { entryId: 'e2', data: new Blob(['newer-2026']), cropTypeIds: [cropTypeId], createdAt: '2026-05-01T10:00:00Z', entryDate: '2026-05-01' },
+      db,
+    )
+    await createEntryPhoto(
+      { entryId: 'e3', data: new Blob(['latest-2026']), cropTypeIds: [cropTypeId], createdAt: '2026-06-15T10:00:00Z', entryDate: '2026-06-15' },
+      db,
+    )
+    const photo = await getLatestPhotoByCropTypeAndYear(cropTypeId, 2026, db)
+    expect(photo).not.toBeNull()
+    expect(photo!.createdAt).toBe('2026-06-15T10:00:00Z')
+  })
+
+  it('returns null when no photos in the given year', async () => {
+    const db = await freshDb()
+    const cropTypeId = 'ct-tomato'
+    await createEntryPhoto(
+      { entryId: 'e1', data: new Blob(['old']), cropTypeIds: [cropTypeId], createdAt: '2025-06-01T10:00:00Z', entryDate: '2025-06-01' },
+      db,
+    )
+    const photo = await getLatestPhotoByCropTypeAndYear(cropTypeId, 2026, db)
+    expect(photo).toBeNull()
+  })
+
+  it('ignores photos without entryDate', async () => {
+    const db = await freshDb()
+    const cropTypeId = 'ct-tomato'
+    await createEntryPhoto(
+      { entryId: 'e1', data: new Blob(['no-date']), cropTypeIds: [cropTypeId], createdAt: '2026-06-01T10:00:00Z' },
+      db,
+    )
+    const photo = await getLatestPhotoByCropTypeAndYear(cropTypeId, 2026, db)
+    expect(photo).toBeNull()
+  })
+})
+
+// ── updateJournalEntryAndPhotoDates ───────────────────────────────────────────
+
+describe('updateJournalEntryAndPhotoDates', () => {
+  it('cascades new date to all photos in the same transaction', async () => {
+    const db = await freshDb()
+    const entry = await createJournalEntry(
+      { date: '2026-06-01', text: 'Test', nextSeasonNote: '', weatherC: null, weatherIcon: null, photoIds: [], createdAt: '2026-06-01T10:00:00Z' },
+      db,
+    )
+    const p1 = await createEntryPhoto(
+      { entryId: entry.id, data: new Blob(['a']), cropTypeIds: [], createdAt: '2026-06-01T10:00:00Z', entryDate: '2026-06-01' },
+      db,
+    )
+    const p2 = await createEntryPhoto(
+      { entryId: entry.id, data: new Blob(['b']), cropTypeIds: [], createdAt: '2026-06-01T10:01:00Z', entryDate: '2026-06-01' },
+      db,
+    )
+    const updatedEntry = { ...entry, date: '2026-07-15', yearMonth: '2026-07', photoIds: [p1.id, p2.id] }
+    await updateJournalEntryAndPhotoDates(updatedEntry, db)
+
+    const photos = await getEntryPhotosByEntry(entry.id, db)
+    expect(photos.every((p) => p.entryDate === '2026-07-15')).toBe(true)
+
+    const saved = await db.get('journalEntries', entry.id)
+    expect(saved!.date).toBe('2026-07-15')
+  })
+
+  it('handles an entry with no photos', async () => {
+    const db = await freshDb()
+    const entry = await createJournalEntry(
+      { date: '2026-06-01', text: 'No photos', nextSeasonNote: '', weatherC: null, weatherIcon: null, photoIds: [], createdAt: '2026-06-01T10:00:00Z' },
+      db,
+    )
+    await expect(updateJournalEntryAndPhotoDates({ ...entry, date: '2026-07-01', yearMonth: '2026-07' }, db)).resolves.toBeUndefined()
   })
 })
