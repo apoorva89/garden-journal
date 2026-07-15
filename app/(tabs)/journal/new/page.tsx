@@ -126,7 +126,6 @@ export default function NewEntryPage() {
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="What happened in the garden today?"
-            autoFocus
             className="w-full bg-surface rounded-2xl p-4 text-base text-ink leading-relaxed resize-none outline-none placeholder:text-mushroom"
             style={{ minHeight: 200, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
           />
