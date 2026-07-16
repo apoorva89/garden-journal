@@ -79,3 +79,15 @@ test('save button is disabled until nursery name is filled', async ({ page }) =>
   await page.getByPlaceholder('Nursery name').fill('Green Thumb Nursery')
   await expect(page.getByRole('button', { name: 'Save Crop' })).toBeEnabled()
 })
+
+test('saves a nursery-sourced crop with variety and lands on the detail page', async ({ page }) => {
+  await page.goto(`${BASE}/crops/new/`)
+  await page.getByTestId('form-ready').waitFor()
+  await page.getByPlaceholder('e.g. Tomato').fill('Eggplant')
+  await page.getByPlaceholder('e.g. Sungold').fill('Ichiban')
+  await page.getByPlaceholder('Nursery name').fill('City Nursery')
+  await page.getByRole('button', { name: 'Save Crop' }).click()
+
+  await expect(page).toHaveURL(new RegExp(`${BASE}/crops/detail`))
+  await expect(page.getByText('Eggplant')).toBeVisible()
+})
