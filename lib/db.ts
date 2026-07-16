@@ -197,12 +197,16 @@ export async function createCropType(data: Omit<CropType, 'id'>, database?: Gard
   return record
 }
 
-export async function updateCropType(cropType: CropType, database?: GardenDB): Promise<void> {
+export async function updateCropType(cropType: CropType, database?: GardenDB): Promise<CropType> {
   await (await useDb(database)).put('cropTypes', cropType)
+  return cropType
 }
 
-export async function deleteCropType(id: string, database?: GardenDB): Promise<void> {
-  await (await useDb(database)).delete('cropTypes', id)
+export async function deleteCropType(id: string, database?: GardenDB): Promise<CropType | undefined> {
+  const d = await useDb(database)
+  const record = await d.get('cropTypes', id)
+  await d.delete('cropTypes', id)
+  return record
 }
 
 // ── CropInstance CRUD ─────────────────────────────────────────────────────────
@@ -222,12 +226,16 @@ export async function createCropInstance(data: Omit<CropInstance, 'id'>, databas
   return record
 }
 
-export async function updateCropInstance(cropInstance: CropInstance, database?: GardenDB): Promise<void> {
+export async function updateCropInstance(cropInstance: CropInstance, database?: GardenDB): Promise<CropInstance> {
   await (await useDb(database)).put('cropInstances', cropInstance)
+  return cropInstance
 }
 
-export async function deleteCropInstance(id: string, database?: GardenDB): Promise<void> {
-  await (await useDb(database)).delete('cropInstances', id)
+export async function deleteCropInstance(id: string, database?: GardenDB): Promise<CropInstance | undefined> {
+  const d = await useDb(database)
+  const record = await d.get('cropInstances', id)
+  await d.delete('cropInstances', id)
+  return record
 }
 
 // ── JournalEntry CRUD ─────────────────────────────────────────────────────────
@@ -250,12 +258,16 @@ export async function createJournalEntry(
   return record
 }
 
-export async function updateJournalEntry(entry: JournalEntry, database?: GardenDB): Promise<void> {
+export async function updateJournalEntry(entry: JournalEntry, database?: GardenDB): Promise<JournalEntry> {
   await (await useDb(database)).put('journalEntries', entry)
+  return entry
 }
 
-export async function deleteJournalEntry(id: string, database?: GardenDB): Promise<void> {
-  await (await useDb(database)).delete('journalEntries', id)
+export async function deleteJournalEntry(id: string, database?: GardenDB): Promise<JournalEntry | undefined> {
+  const d = await useDb(database)
+  const record = await d.get('journalEntries', id)
+  await d.delete('journalEntries', id)
+  return record
 }
 
 // ── EntryPhoto CRUD ───────────────────────────────────────────────────────────
@@ -272,12 +284,16 @@ export async function getEntryPhotosByEntry(entryId: string, database?: GardenDB
   return records.map(fromStored)
 }
 
-export async function updateEntryPhoto(photo: EntryPhoto, database?: GardenDB): Promise<void> {
+export async function updateEntryPhoto(photo: EntryPhoto, database?: GardenDB): Promise<EntryPhoto> {
   await (await useDb(database)).put('entryPhotos', await toStored(photo) as StoredEntryPhoto)
+  return photo
 }
 
-export async function deleteEntryPhoto(id: string, database?: GardenDB): Promise<void> {
-  await (await useDb(database)).delete('entryPhotos', id)
+export async function deleteEntryPhoto(id: string, database?: GardenDB): Promise<EntryPhoto | undefined> {
+  const d = await useDb(database)
+  const stored = await d.get('entryPhotos', id)
+  await d.delete('entryPhotos', id)
+  return stored ? fromStored(stored) : undefined
 }
 
 // ── CropEvent CRUD ────────────────────────────────────────────────────────────
@@ -297,12 +313,16 @@ export async function createCropEvent(data: Omit<CropEvent, 'id'>, database?: Ga
   return record
 }
 
-export async function updateCropEvent(event: CropEvent, database?: GardenDB): Promise<void> {
+export async function updateCropEvent(event: CropEvent, database?: GardenDB): Promise<CropEvent> {
   await (await useDb(database)).put('cropEvents', event)
+  return event
 }
 
-export async function deleteCropEvent(id: string, database?: GardenDB): Promise<void> {
-  await (await useDb(database)).delete('cropEvents', id)
+export async function deleteCropEvent(id: string, database?: GardenDB): Promise<CropEvent | undefined> {
+  const d = await useDb(database)
+  const record = await d.get('cropEvents', id)
+  await d.delete('cropEvents', id)
+  return record
 }
 
 // ── CareTask CRUD ─────────────────────────────────────────────────────────────
@@ -322,12 +342,16 @@ export async function createCareTask(data: Omit<CareTask, 'id'>, database?: Gard
   return record
 }
 
-export async function updateCareTask(task: CareTask, database?: GardenDB): Promise<void> {
+export async function updateCareTask(task: CareTask, database?: GardenDB): Promise<CareTask> {
   await (await useDb(database)).put('careTasks', task)
+  return task
 }
 
-export async function deleteCareTask(id: string, database?: GardenDB): Promise<void> {
-  await (await useDb(database)).delete('careTasks', id)
+export async function deleteCareTask(id: string, database?: GardenDB): Promise<CareTask | undefined> {
+  const d = await useDb(database)
+  const record = await d.get('careTasks', id)
+  await d.delete('careTasks', id)
+  return record
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
