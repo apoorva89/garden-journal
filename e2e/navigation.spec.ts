@@ -15,6 +15,10 @@ test('tab bar navigates between tabs', async ({ page }) => {
   await page.getByRole('link', { name: 'Next Season' }).click()
   await expect(page).toHaveURL(`${BASE}/next-season/`)
 
+  await page.getByRole('link', { name: 'Settings' }).click()
+  await expect(page).toHaveURL(`${BASE}/settings/`)
+  await page.waitForLoadState('networkidle')
+
   await page.getByRole('link', { name: 'Journal' }).click()
   await expect(page).toHaveURL(`${BASE}/journal/`)
 })

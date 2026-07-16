@@ -91,6 +91,11 @@ export interface CareTask {
 export interface Settings {
   locationName: string
   lastFrostDate: string | null
+  latitude: number | null
+  longitude: number | null
+  aiProvider: string
+  aiModel: string
+  apiKeys: { anthropic?: string; openai?: string }
 }
 
 // ── DB Schema (internal) ──────────────────────────────────────────────────────

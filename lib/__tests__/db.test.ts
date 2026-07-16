@@ -16,6 +16,8 @@ import {
   getLatestPhotoByCropTypeAndYear,
   getOpenProblemsByType,
   addLessonToCropType,
+  getSettings,
+  saveSettings,
 } from '../db'
 
 function freshDb() {
@@ -323,5 +325,44 @@ describe('updateJournalEntryAndPhotoDates', () => {
       db,
     )
     await expect(updateJournalEntryAndPhotoDates({ ...entry, date: '2026-07-01', yearMonth: '2026-07' }, db)).resolves.toBeUndefined()
+  })
+})
+
+// ── getSettings / saveSettings ────────────────────────────────────────────────
+
+describe('getSettings / saveSettings', () => {
+  it('returns null on a fresh database', async () => {
+    const db = await freshDb()
+    expect(await getSettings(db)).toBeNull()
+  })
+
+  it('round-trips all fields', async () => {
+    const db = await freshDb()
+    const s = {
+      locationName: 'Seattle, WA',
+      lastFrostDate: '2026-04-15',
+      latitude: 47.6062,
+      longitude: -122.3321,
+      aiProvider: 'anthropic',
+      aiModel: 'claude-sonnet-4-6',
+      apiKeys: { anthropic: 'sk-ant-test', openai: 'sk-test' },
+    }
+    await saveSettings(s, db)
+    expect(await getSettings(db)).toEqual(s)
+  })
+
+  it('overwrites on a second save', async () => {
+    const db = await freshDb()
+    await saveSettings(
+      { locationName: 'Portland, OR', lastFrostDate: null, latitude: 45.52, longitude: -122.68, aiProvider: '', aiModel: '', apiKeys: {} },
+      db,
+    )
+    await saveSettings(
+      { locationName: 'Tucson, AZ', lastFrostDate: '2026-03-01', latitude: 32.22, longitude: -110.97, aiProvider: 'openai', aiModel: 'gpt-4o', apiKeys: { openai: 'sk-new' } },
+      db,
+    )
+    const result = await getSettings(db)
+    expect(result?.locationName).toBe('Tucson, AZ')
+    expect(result?.aiProvider).toBe('openai')
   })
 })

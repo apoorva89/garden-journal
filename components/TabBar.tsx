@@ -7,6 +7,7 @@ const TABS = [
   { href: '/journal', label: 'Journal', icon: '📖' },
   { href: '/crops', label: 'Crops', icon: '🌱' },
   { href: '/next-season', label: 'Next Season', icon: '🌿' },
+  { href: '/settings', label: 'Settings', icon: '⚙️' },
 ]
 
 export default function TabBar() {
