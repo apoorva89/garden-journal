@@ -433,6 +433,17 @@ export async function updateJournalEntryAndPhotoDates(entry: JournalEntry, datab
   await tx.done
 }
 
+export async function resetDatabase(): Promise<void> {
+  const conn = await db.catch(() => null)
+  conn?.close()
+  await new Promise<void>((resolve, reject) => {
+    const req = indexedDB.deleteDatabase('garden-journal')
+    req.onsuccess = () => resolve()
+    req.onerror = () => reject(req.error)
+  })
+  await openGardenDB()
+}
+
 export async function addLessonToCropType(cropTypeId: string, text: string, database?: GardenDB): Promise<void> {
   const d = await useDb(database)
   const cropType = await d.get('cropTypes', cropTypeId)
