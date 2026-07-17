@@ -153,7 +153,7 @@ export default function SettingsPage() {
         setLocating(false)
         setGeoError(
           err.code === err.PERMISSION_DENIED
-            ? 'Location access denied — you can still search for your location below'
+            ? 'Location access denied. To re-enable: Settings → Privacy & Security → Location Services → Safari Websites → set to "Ask". You can also search for your location using the text box below.'
             : 'Could not get your location — try searching below',
         )
       },

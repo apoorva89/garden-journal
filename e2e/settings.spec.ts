@@ -56,7 +56,7 @@ test('Use current location falls back to raw coords when reverse geocode fails',
 test('Use current location shows error when permission is denied', async ({ page }) => {
   await page.goto(`${BASE}/settings/`)
   await page.getByRole('button', { name: 'Use current location' }).click()
-  await expect(page.getByText(/Location access denied|Could not get your location/)).toBeVisible({ timeout: 5000 })
+  await expect(page.getByText(/Location access denied\.|Could not get your location/)).toBeVisible({ timeout: 5000 })
 })
 
 test('wipe confirm accept redirects to journal', async ({ page }) => {
