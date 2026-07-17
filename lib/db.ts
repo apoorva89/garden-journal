@@ -1,6 +1,7 @@
 import { openDB } from 'idb'
 import type { IDBPDatabase, DBSchema } from 'idb'
 import { nanoid } from 'nanoid'
+import type { ExtractedEvent } from './ai/extractionSpec'
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -65,18 +66,22 @@ export interface JournalEntry {
   /** Present (value 1) = awaiting sync; absent = synced. Sparse index lets IDB skip synced entries entirely. */
   needsSync?: 1
   createdAt: string
+  updatedAt: string
 }
 
 export interface CropEvent {
   id: string
   cropInstanceId: string
   date: string
+  year: number
   type: 'observation' | 'problem' | 'fix' | 'nursery_pickup' | 'harvest' | 'lesson'
   notes: string
   linkedProblemId: string | null
   photos: string[]
   weatherC: number | null
   weatherIcon: string | null
+  /** Meaningful only for type: 'problem'. Defaults false; set true only by explicit user confirmation. */
+  resolved: boolean
 }
 
 export interface CareTask {
@@ -86,6 +91,44 @@ export interface CareTask {
   schedule: string
   product: string
   dosage: string
+}
+
+export type CardStatus = 'pending' | 'confirmed' | 'dismissed'
+
+export interface EventReview {
+  id: string
+  status: CardStatus
+  extracted: ExtractedEvent
+  resolvedCropTypeId: string | null
+  resolvedInstanceId: string | null
+  resolvedLinkedProblemId: string | null
+  edits?: Partial<ExtractedEvent>
+}
+
+export interface ApiUsageLog {
+  id: string
+  entryId: string
+  date: string
+  provider: string
+  model: string
+  inputTokens: number
+  outputTokens: number
+  rawUsage: Record<string, number>
+}
+
+export interface PendingExtraction {
+  entryId: string
+  events: EventReview[]
+  usage: { inputTokens: number; outputTokens: number }
+  createdAt: string
+}
+
+export interface GeneralNote {
+  id: string
+  entryId: string
+  date: string
+  text: string
+  isLesson?: boolean
 }
 
 export interface Settings {
@@ -134,6 +177,20 @@ interface GardenDBSchema extends DBSchema {
     key: string
     value: Settings
   }
+  apiUsageLogs: {
+    key: string
+    value: ApiUsageLog
+    indexes: { 'by-entryId': string }
+  }
+  pendingExtractions: {
+    key: string
+    value: PendingExtraction
+  }
+  generalNotes: {
+    key: string
+    value: GeneralNote
+    indexes: { 'by-entryId': string }
+  }
 }
 
 type GardenDB = IDBPDatabase<GardenDBSchema>
@@ -170,6 +227,14 @@ export async function openGardenDB(idbFactory?: IDBFactory): Promise<GardenDB> {
       tasks.createIndex('by-cropInstanceId', 'cropInstanceId')
 
       database.createObjectStore('settings')
+
+      const apiLogs = database.createObjectStore('apiUsageLogs', { keyPath: 'id' })
+      apiLogs.createIndex('by-entryId', 'entryId')
+
+      database.createObjectStore('pendingExtractions', { keyPath: 'entryId' })
+
+      const generalNotes = database.createObjectStore('generalNotes', { keyPath: 'id' })
+      generalNotes.createIndex('by-entryId', 'entryId')
     },
   })
 }
@@ -254,18 +319,19 @@ export async function getJournalEntryById(id: string, database?: GardenDB): Prom
 }
 
 export async function createJournalEntry(
-  data: Omit<JournalEntry, 'id' | 'yearMonth' | 'needsSync'>,
+  data: Omit<JournalEntry, 'id' | 'yearMonth' | 'needsSync' | 'updatedAt'>,
   database?: GardenDB,
 ): Promise<JournalEntry> {
   const d = await useDb(database)
-  const record: JournalEntry = { ...data, id: nanoid(), yearMonth: data.date.slice(0, 7), needsSync: 1 }
+  const record: JournalEntry = { ...data, id: nanoid(), yearMonth: data.date.slice(0, 7), needsSync: 1, updatedAt: new Date().toISOString() }
   await d.add('journalEntries', record)
   return record
 }
 
 export async function updateJournalEntry(entry: JournalEntry, database?: GardenDB): Promise<JournalEntry> {
-  await (await useDb(database)).put('journalEntries', entry)
-  return entry
+  const updated = { ...entry, updatedAt: new Date().toISOString() }
+  await (await useDb(database)).put('journalEntries', updated)
+  return updated
 }
 
 export async function deleteJournalEntry(id: string, database?: GardenDB): Promise<JournalEntry | undefined> {
@@ -311,9 +377,9 @@ export async function getCropEventById(id: string, database?: GardenDB): Promise
   return (await useDb(database)).get('cropEvents', id)
 }
 
-export async function createCropEvent(data: Omit<CropEvent, 'id'>, database?: GardenDB): Promise<CropEvent> {
+export async function createCropEvent(data: Omit<CropEvent, 'id' | 'year' | 'resolved'>, database?: GardenDB): Promise<CropEvent> {
   const d = await useDb(database)
-  const record: CropEvent = { ...data, id: nanoid() }
+  const record: CropEvent = { ...data, id: nanoid(), year: Number(data.date.slice(0, 4)), resolved: false }
   await d.add('cropEvents', record)
   return record
 }
@@ -471,6 +537,12 @@ export async function resetDatabase(): Promise<void> {
     req.onerror = () => reject(req.error)
   })
   await openGardenDB()
+}
+
+export async function getAllOpenProblems(targetYear: number, database?: GardenDB): Promise<CropEvent[]> {
+  const d = await useDb(database)
+  const allProblems = await d.getAllFromIndex('cropEvents', 'by-type', 'problem')
+  return allProblems.filter((e) => e.resolved === false && e.year === targetYear)
 }
 
 export async function addLessonToCropType(cropTypeId: string, text: string, database?: GardenDB): Promise<void> {
