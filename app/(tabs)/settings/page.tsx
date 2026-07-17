@@ -223,7 +223,7 @@ export default function SettingsPage() {
                   onChange={(e) => handleLocationChange(e.target.value)}
                   onBlur={handleLocationBlur}
                   placeholder="e.g. Seattle, WA"
-                  className="w-full bg-transparent text-ink text-sm outline-none placeholder:text-mushroom"
+                  className="w-full bg-transparent text-ink text-base outline-none placeholder:text-mushroom"
                 />
                 {hasTextButNoCoords && (
                   <p className="mt-1 text-xs text-muted">
@@ -263,7 +263,7 @@ export default function SettingsPage() {
                   updateSettings({ ...settingsRef.current, lastFrostDate: e.target.value || null })
                 }
                 onBlur={() => persist(settingsRef.current)}
-                className="w-full bg-transparent text-ink text-sm outline-none"
+                className="w-full bg-transparent text-ink text-base outline-none"
               />
             </div>
           </div>
@@ -294,7 +294,7 @@ export default function SettingsPage() {
                 onChange={(e) => updateSettings({ ...settingsRef.current, aiProvider: e.target.value })}
                 onBlur={() => persist(settingsRef.current)}
                 placeholder="or type a provider"
-                className="w-full bg-transparent text-ink text-sm outline-none placeholder:text-mushroom"
+                className="w-full bg-transparent text-ink text-base outline-none placeholder:text-mushroom"
               />
             </div>
             <hr className="border-bone" />
@@ -306,7 +306,7 @@ export default function SettingsPage() {
                 onChange={(e) => updateSettings({ ...settingsRef.current, aiModel: e.target.value })}
                 onBlur={() => persist(settingsRef.current)}
                 placeholder="e.g. claude-sonnet-4-6"
-                className="w-full bg-transparent text-ink text-sm outline-none placeholder:text-mushroom"
+                className="w-full bg-transparent text-ink text-base outline-none placeholder:text-mushroom"
               />
             </div>
             <hr className="border-bone" />
@@ -320,7 +320,7 @@ export default function SettingsPage() {
                 }
                 onBlur={() => persist(settingsRef.current)}
                 placeholder="sk-ant-..."
-                className="w-full bg-transparent text-ink text-sm outline-none placeholder:text-mushroom font-mono"
+                className="w-full bg-transparent text-ink text-base outline-none placeholder:text-mushroom font-mono"
               />
             </div>
             <hr className="border-bone" />
@@ -334,7 +334,7 @@ export default function SettingsPage() {
                 }
                 onBlur={() => persist(settingsRef.current)}
                 placeholder="sk-..."
-                className="w-full bg-transparent text-ink text-sm outline-none placeholder:text-mushroom font-mono"
+                className="w-full bg-transparent text-ink text-base outline-none placeholder:text-mushroom font-mono"
               />
             </div>
           </div>
