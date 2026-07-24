@@ -10,11 +10,13 @@ import {
   createCropType,
   createCropInstance,
   createCropEvent,
+  updateCropEvent,
   getEntriesByMonth,
   getUnsyncedEntries,
   getLatestPhotoByCropType,
   getLatestPhotoByCropTypeAndYear,
   getOpenProblemsByType,
+  getAllOpenProblems,
   addLessonToCropType,
   getSettings,
   saveSettings,
@@ -211,6 +213,68 @@ describe('getOpenProblemsByType', () => {
     const problems = await getOpenProblemsByType(cropType.id, db)
     expect(problems).toHaveLength(1)
     expect(problems[0].id).toBe(openProblem.id)
+  })
+})
+
+// ── getAllOpenProblems ────────────────────────────────────────────────────────
+
+describe('getAllOpenProblems', () => {
+  it('returns unresolved problems matching the target year', async () => {
+    const db = await freshDb()
+    const cropType = await createCropType({ name: 'Tomatoes', lessons: [] }, db)
+    const instance = await createCropInstance(
+      { cropTypeId: cropType.id, variety: 'Sungold', year: 2026, source: { type: 'seed' }, createdAt: '2026-04-01T00:00:00Z' },
+      db,
+    )
+    await createCropEvent(
+      { cropInstanceId: instance.id, date: '2026-06-01', type: 'problem', notes: 'Aphids', linkedProblemId: null, photos: [], weatherC: null, weatherIcon: null },
+      db,
+    )
+    const problems = await getAllOpenProblems(2026, db)
+    expect(problems).toHaveLength(1)
+    expect(problems[0].type).toBe('problem')
+    expect(problems[0].resolved).toBe(false)
+    expect(problems[0].year).toBe(2026)
+  })
+
+  it('excludes problems that have been explicitly resolved', async () => {
+    const db = await freshDb()
+    const cropType = await createCropType({ name: 'Tomatoes', lessons: [] }, db)
+    const instance = await createCropInstance(
+      { cropTypeId: cropType.id, variety: 'Sungold', year: 2026, source: { type: 'seed' }, createdAt: '2026-04-01T00:00:00Z' },
+      db,
+    )
+    const problem = await createCropEvent(
+      { cropInstanceId: instance.id, date: '2026-06-01', type: 'problem', notes: 'Aphids', linkedProblemId: null, photos: [], weatherC: null, weatherIcon: null },
+      db,
+    )
+    await updateCropEvent({ ...problem, resolved: true }, db)
+    const problems = await getAllOpenProblems(2026, db)
+    expect(problems).toHaveLength(0)
+  })
+
+  it('excludes problems from other years', async () => {
+    const db = await freshDb()
+    const cropType = await createCropType({ name: 'Tomatoes', lessons: [] }, db)
+    const inst25 = await createCropInstance(
+      { cropTypeId: cropType.id, variety: 'Sungold', year: 2025, source: { type: 'seed' }, createdAt: '2025-04-01T00:00:00Z' },
+      db,
+    )
+    const inst26 = await createCropInstance(
+      { cropTypeId: cropType.id, variety: 'Sungold', year: 2026, source: { type: 'seed' }, createdAt: '2026-04-01T00:00:00Z' },
+      db,
+    )
+    await createCropEvent(
+      { cropInstanceId: inst25.id, date: '2025-06-01', type: 'problem', notes: 'Old blight', linkedProblemId: null, photos: [], weatherC: null, weatherIcon: null },
+      db,
+    )
+    await createCropEvent(
+      { cropInstanceId: inst26.id, date: '2026-06-01', type: 'problem', notes: 'Current aphids', linkedProblemId: null, photos: [], weatherC: null, weatherIcon: null },
+      db,
+    )
+    const problems = await getAllOpenProblems(2026, db)
+    expect(problems).toHaveLength(1)
+    expect(problems[0].notes).toBe('Current aphids')
   })
 })
 
