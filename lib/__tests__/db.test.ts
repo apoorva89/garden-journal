@@ -388,7 +388,8 @@ describe('updateJournalEntryAndPhotoDates', () => {
       { date: '2026-06-01', text: 'No photos', nextSeasonNote: '', weatherC: null, weatherIcon: null, photoIds: [], createdAt: '2026-06-01T10:00:00Z' },
       db,
     )
-    await expect(updateJournalEntryAndPhotoDates({ ...entry, date: '2026-07-01', yearMonth: '2026-07' }, db)).resolves.toBeUndefined()
+    const updated = { ...entry, date: '2026-07-01', yearMonth: '2026-07' }
+    await expect(updateJournalEntryAndPhotoDates(updated, db)).resolves.toEqual(updated)
   })
 })
 

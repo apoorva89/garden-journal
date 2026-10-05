@@ -432,8 +432,9 @@ export async function getSettings(database?: GardenDB): Promise<Settings | null>
   return result ?? null
 }
 
-export async function saveSettings(settings: Settings, database?: GardenDB): Promise<void> {
+export async function saveSettings(settings: Settings, database?: GardenDB): Promise<Settings> {
   await (await useDb(database)).put('settings', settings, 'settings')
+  return settings
 }
 
 // ── Query Functions ───────────────────────────────────────────────────────────
@@ -515,7 +516,7 @@ export async function getLatestPhotoByCropTypeAndYear(
   return latest ? fromStored(latest) : null
 }
 
-export async function updateJournalEntryAndPhotoDates(entry: JournalEntry, database?: GardenDB): Promise<void> {
+export async function updateJournalEntryAndPhotoDates(entry: JournalEntry, database?: GardenDB): Promise<JournalEntry> {
   const d = await useDb(database)
   const tx = d.transaction(['journalEntries', 'entryPhotos'], 'readwrite')
   const entryStore = tx.objectStore('journalEntries')
@@ -526,6 +527,7 @@ export async function updateJournalEntryAndPhotoDates(entry: JournalEntry, datab
     if (stored) await photoStore.put({ ...stored, entryDate: entry.date })
   }
   await tx.done
+  return entry
 }
 
 export async function resetDatabase(): Promise<void> {
@@ -545,10 +547,11 @@ export async function getAllOpenProblems(targetYear: number, database?: GardenDB
   return allProblems.filter((e) => e.resolved === false && e.year === targetYear)
 }
 
-export async function addLessonToCropType(cropTypeId: string, text: string, database?: GardenDB): Promise<void> {
+export async function addLessonToCropType(cropTypeId: string, text: string, database?: GardenDB): Promise<Lesson> {
   const d = await useDb(database)
   const cropType = await d.get('cropTypes', cropTypeId)
   if (!cropType) throw new Error(`CropType not found: ${cropTypeId}`)
   const lesson: Lesson = { id: nanoid(), text, createdAt: new Date().toISOString() }
   await d.put('cropTypes', { ...cropType, lessons: [...cropType.lessons, lesson] })
+  return lesson
 }
