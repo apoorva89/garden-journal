@@ -163,7 +163,7 @@ Entries written before this log existed have no dates. New entries include a **D
 **Context:** Some next-season thoughts don't name a crop. These are stored as `GeneralNote` records with `isLesson: true` (D-032).
 **Decision:** The Next Season tab shows a "General" card at the top, listing `GeneralNote` lessons, above the lessons grouped by crop type.
 **Alternatives:** Not recorded.
-**Consequences:** This is required, not optional polish; it is the only reason the `isLesson` flag exists.
+**Consequences:** This is required, not optional polish. A lesson event with no resolved crop also commits as a `GeneralNote` with `isLesson: true` (D-087).
 
 ### D-015 — Display for non-lesson general notes
 **Type:** Product
@@ -294,21 +294,23 @@ Entries written before this log existed have no dates. New entries include a **D
 
 ### D-029 — `JournalEntry.updatedAt`
 **Type:** Technical
-**Status:** Current
+**Status:** Superseded by D-085
 **Phase:** 8a
 **Context:** An entry can be edited after its AI extraction has been run.
 **Decision:** Each entry stores `updatedAt`, bumped on any change to text or photos.
 **Alternatives:** Not recorded.
 **Consequences:** Used to detect a stale pending extraction (D-073).
+**Why superseded:** The detail view (D-049) adds editing of `nextSeasonNote` and `date`, both of which should bump `updatedAt`. Photo and tag changes were excluded from the staleness signal.
 
 ### D-030 — PendingExtraction persists review state
 **Type:** Technical
-**Status:** Current
+**Status:** Superseded by D-086
 **Phase:** 8a
 **Context:** Reviewing extracted events can be interrupted, and each extraction is a paid API call.
 **Decision:** A `PendingExtraction` record per entry holds the extraction, token usage, and `createdAt`. Per-event review state (`EventReview`) is embedded in it as an array; `EventReview` has no store of its own. Reopening an entry resumes the saved review instead of calling the API again.
 **Alternatives:** Not recorded.
 **Consequences:** Closing the app mid-review loses nothing, and never causes a second charge.
+**Why superseded:** The Done transaction now deletes the `PendingExtraction`. `EventReview.extracted` is nullable to support manually added cards. A new `acknowledged` field supports the Keep option in stale reviews.
 
 ### D-031 — ApiUsageLog
 **Type:** Technical
@@ -321,12 +323,13 @@ Entries written before this log existed have no dates. New entries include a **D
 
 ### D-032 — GeneralNote for crop-less content
 **Type:** Technical
-**Status:** Current
+**Status:** Superseded by D-087
 **Phase:** 8a
 **Context:** Some journal content doesn't concern any crop, but `CropEvent` requires a crop instance.
 **Decision:** Crop-less content is stored as a `GeneralNote` (`id`, `entryId`, `date`, `text`, optional `isLesson`). `CropEvent.cropInstanceId` stays required.
 **Alternatives:** Making the crop optional on `CropEvent`, or forcing the user to pick a crop. Neither was adopted.
 **Consequences:** Lessons marked `isLesson` appear on Next Season (D-014). Other general notes have no display yet (D-015).
+**Why superseded:** Lesson events with no resolved crop also commit as `GeneralNote` records with `isLesson: true`, not only crop-less text content.
 
 ### D-033 — Lessons embedded in CropType
 **Type:** Technical
@@ -404,9 +407,59 @@ Entries written before this log existed have no dates. New entries include a **D
 **Status:** Planned, not built
 **Phase:** 8d
 **Context:** The quality of AI extraction should be measurable from real use.
-**Decision:** A store records the outcome of each reviewed event: confirmed as-is, confirmed after editing, dismissed, or added manually because the AI missed it.
+**Decision:** A store records the outcome of each reviewed event: confirmed as-is, confirmed after editing, dismissed, or added manually because the AI missed it. The outcome record snapshots `extracted` (null for a manually added card) and `edits`. The outcome value is derived from the card state, `extracted`, and `edits`.
 **Alternatives:** Not recorded.
-**Consequences:** Store design and exact fields are still open.
+**Consequences:** Dismissed and edited cards remain measurable after the `PendingExtraction` is deleted (D-086).
+
+### D-083 — General events committed as GeneralNote without isLesson
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 8e-1
+**Context:** Confirmed events of type `general` need a storage destination. `CropEvent` requires a crop instance; `GeneralNote` without `isLesson` is the correct destination.
+**Decision:** A confirmed `general` event is stored as a `GeneralNote` without `isLesson`, linked to its source entry by `entryId`. No screen shows it; D-015 remains deferred. It does not appear on the Crop Timeline or in Next Season. `GeneralNote.date` follows entry date edits as a denormalized field (D-049).
+**Alternatives:** Not recorded.
+**Consequences:** General observations are persisted but invisible until a display is designed (D-015). See also D-087.
+
+### D-084 — CropEvent.entryId links a committed event to its entry
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 8e-1
+**Context:** Committed crop events needed a link back to their source entry for cascade rules and potential display.
+**Decision:** `CropEvent` gains an `entryId` field with a single-field index, added in phase 8e-1. It links the committed event to the journal entry that produced it.
+**Alternatives:** Not recorded.
+**Consequences:** Committed event dates change only through the 12b proposal mechanism (D-089), not by cascading from entry date edits.
+
+### D-085 — JournalEntry.updatedAt scope (refined)
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 12a
+**Context:** D-029 defined `updatedAt` as bumped on any change to text or photos. The detail view (D-049) adds editing of `nextSeasonNote` and `date`; photo and tag changes are excluded from the staleness signal.
+**Decision:** `updatedAt` is bumped by edits to text, `nextSeasonNote`, and date. Photo and tag changes do not bump it.
+**Alternatives:** Not recorded.
+**Consequences:** The staleness check (D-096) uses `updatedAt` to detect a changed extraction target; photo changes don't invalidate a pending extraction.
+
+### D-086 — PendingExtraction lifecycle and manual cards (refined)
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 8d-1
+**Context:** D-030 defined PendingExtraction as persistent across sessions. The Done flow, manual cards, and the Keep option in stale reviews add further requirements.
+**Decision:** The `PendingExtraction` is deleted in the Done transaction. `EventReview.extracted` is nullable: `null` for a manually added card, the AI response for an AI-generated card. `PendingExtraction` gains an `acknowledged` field, set to `true` by the Keep action in a stale review.
+**Alternatives:** Not recorded.
+**Consequences:** Dismissed and edited cards remain measurable after Done because the outcome store (D-041) snapshots `extracted` and `edits` before the `PendingExtraction` is deleted.
+
+### D-087 — GeneralNote stores crop-less content and unresolved-crop lessons
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 8e-1
+**Context:** D-032 established GeneralNote for crop-less content. Lesson events with no resolved crop instance also need a destination.
+**Decision:** `GeneralNote` stores crop-less content (`isLesson` absent or false) and lesson events whose crop did not resolve to a known instance (`isLesson: true`). A confirmed lesson event with no resolved crop commits as a `GeneralNote` with `isLesson: true`. `CropEvent.cropInstanceId` stays required for all crop events.
+**Alternatives:** Not recorded.
+**Consequences:** Lessons marked `isLesson: true` appear on Next Season (D-014). General notes without `isLesson` have no display yet (D-015). See also D-083.
 
 ---
 
@@ -481,14 +534,11 @@ Entries written before this log existed have no dates. New entries include a **D
 ### D-049 — Entries are editable from a detail view
 **Type:** Product
 **Status:** Planned, not built
-**Phase:** Not yet assigned
+**Phase:** 12a and 12b
 **Context:** Mistakes in an entry's text or date need a fix after saving.
-**Decision:** An entry detail view allows editing text and date. The all-entries feed stays read-only. A date edit updates `yearMonth` (D-024) and each photo's `entryDate` (D-025) in one readwrite transaction.
+**Decision:** An entry detail view allows editing text, `nextSeasonNote`, date, and photos. The all-entries feed stays read-only. A date edit updates `yearMonth` (D-024), each photo's `entryDate` (D-025), and all `GeneralNote` dates for the entry (D-083) in one readwrite transaction.
 **Alternatives:** Not recorded.
-**Consequences:** Still open:
-- Refetching weather for the new date.
-- Re-resolving events to a different crop instance if the year changes.
-- What happens when an entry is edited after its events were committed. The staleness check (D-073) covers only pending extractions.
+**Consequences:** Weather is cleared on a date edit; the user refreshes it with the "Refresh weather" action on the detail view (D-090). Year edits are not allowed (D-088). An edit after Done changes committed events only through the 12b proposal mechanism (D-089).
 
 ### D-050 — Missing-instance nudge when tagging
 **Type:** Product
@@ -507,6 +557,16 @@ Entries written before this log existed have no dates. New entries include a **D
 **Decision:** `InstanceQuickCreate` takes a required `cropTypeId`, a prefilled year, and optional variety and source prefill values. New Crop accepts `?cropTypeId=` to skip crop type search and render this component directly.
 **Alternatives:** Not recorded.
 **Consequences:** The prefill values are used by Nursery Pickup events in Sync & Verify (D-070).
+
+### D-088 — Date edits stay within the entry's current year
+**Type:** Product
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 12a
+**Context:** The entry detail view (D-049) allows editing an entry's date. Changing the year would complicate crop-instance resolution (committed events are tied to a year) and the cascade to `GeneralNote.date`.
+**Decision:** A date edit stays within the entry's current year. The year portion cannot be changed. Committed event dates do not cascade from the entry and change only through the 12b proposal mechanism (D-089).
+**Alternatives:** Not recorded.
+**Consequences:** An entry written in the wrong year requires a new entry.
 
 ---
 
@@ -592,12 +652,13 @@ Entries written before this log existed have no dates. New entries include a **D
 
 ### D-060 — Zod is the single source for the extraction schema
 **Type:** Technical
-**Status:** Current
+**Status:** Superseded by D-092
 **Phase:** 8a
 **Context:** An AI response is untrusted input, and TypeScript types don't exist at runtime.
 **Decision:** The extraction schema is one Zod object in `lib/ai/extractionSpec.ts`. From it come the tool schema sent to the model (via `zod-to-json-schema`), runtime validation (`.parse()`), and the TypeScript type (`z.infer`).
 **Alternatives:** Not recorded.
 **Consequences:** The tool definition and the validator can't drift apart. A malformed response fails loudly.
+**Why superseded:** The code uses Zod v4's built-in `z.toJSONSchema()`, which supersedes the `zod-to-json-schema` package. The package is not present in the dependency list.
 
 ### D-061 — "Notes for next season" is sent to extraction
 **Type:** Technical
@@ -637,7 +698,7 @@ Entries written before this log existed have no dates. New entries include a **D
 
 ### D-065 — Extraction rules
 **Type:** Product
-**Status:** Current
+**Status:** Superseded by D-093
 **Phase:** 8c
 **Context:** The model needs consistent rules for classifying events.
 **Decision:**
@@ -651,6 +712,7 @@ Entries written before this log existed have no dates. New entries include a **D
 
 **Alternatives:** Not recorded.
 **Consequences:** These rules live in the shared extraction spec (D-060).
+**Why superseded:** `ExtractedEventSchema` gains nullable `nurseryName` and `variety` fields. The request builder takes the entry date explicitly. A lesson event with no resolved crop stays type `lesson` and commits as a `GeneralNote` (D-087).
 
 ### D-066 — AI configuration checked on every sync
 **Type:** Technical
@@ -681,7 +743,7 @@ Entries written before this log existed have no dates. New entries include a **D
 
 ### D-069 — Review card states
 **Type:** Product
-**Status:** Current
+**Status:** Superseded by D-094
 **Phase:** 8d
 **Context:** Every extracted event needs an explicit decision.
 **Decision:** Each card is pending, confirmed, or dismissed.
@@ -692,15 +754,17 @@ Entries written before this log existed have no dates. New entries include a **D
 
 **Alternatives:** Not recorded.
 **Consequences:** Nothing is committed without a decision on every card.
+**Why superseded:** Confirm is also enabled for `lesson` events with no resolved crop, because they commit as `GeneralNote` records (D-087), not `CropEvent` records. The instance requirement applies only to events that write a `CropEvent`.
 
 ### D-070 — Missing instance blocks Confirm
 **Type:** Product
-**Status:** Current
+**Status:** Superseded by D-095
 **Phase:** 8d
 **Context:** `CropEvent` requires a crop instance, and the model only matches crop types.
 **Decision:** The app looks up the instance from crop type and the entry's year. If none exists, the card shows a blocking notice and Confirm is disabled until the user creates one through `InstanceQuickCreate`. For Nursery Pickup events, nursery name and variety from the extraction prefill the form.
 **Alternatives:** Letting the model pick an instance. A silent empty state, as on the Crop Type screen, which isn't possible here because the instance is required.
 **Consequences:** The same check as the tagging nudge (D-050), but blocking instead of advisory.
+**Why superseded:** `general` and `lesson` events do not write a `CropEvent` and need no instance; the check no longer applies to them.
 
 ### D-071 — "Mark resolved" checkbox on Fix, unchecked by default
 **Type:** Product
@@ -722,12 +786,13 @@ Entries written before this log existed have no dates. New entries include a **D
 
 ### D-073 — Re-run and staleness handling
 **Type:** Product
-**Status:** Current
+**Status:** Superseded by D-096
 **Phase:** 8e
 **Context:** An extraction can become outdated or unwanted.
 **Decision:** "Re-run extraction" is always available and warns before discarding confirmed cards. Re-running discards the existing `PendingExtraction`, including its embedded review state. When a review is reopened, if the entry's `updatedAt` is later than the extraction's `createdAt`, the user must re-run, with the same warning.
 **Alternatives:** Not recorded.
 **Consequences:** A review never silently runs against changed text.
+**Why superseded:** A stale review no longer forces re-run. The user may instead choose Keep, which acknowledges the stale state and re-enables Confirm and Done. Re-run is available only while a `PendingExtraction` exists.
 
 ### D-074 — Photos attached to confirmed events by tag
 **Type:** Product
@@ -737,6 +802,90 @@ Entries written before this log existed have no dates. New entries include a **D
 **Decision:** When Done is tapped, each confirmed event gets every photo from the entry whose tags include the event's crop, using tags as they stand at that moment. Each card has an option to change the selection.
 **Alternatives:** Not recorded.
 **Consequences:** Adjusting tags during review changes which photos are attached.
+
+### D-089 — Committed events are never rewritten by sync
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 8e-1
+**Context:** Sync runs on entries that may already have committed events. An accidental rewrite would silently lose user decisions.
+**Decision:** The sync pipeline never rewrites or removes committed events. The only change to a committed event's date is the user-confirmed proposal in phase 12b. `CropEvent.entryId` (D-084) links committed events to their entry, but date changes on the entry do not cascade to committed events.
+**Alternatives:** Not recorded.
+**Consequences:** Re-running extraction on an entry with committed events does not change those events; the user acts on the new extraction separately.
+
+### D-090 — Date edit clears weather; user-started refresh on the detail view
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 12a
+**Context:** When an entry's date is edited, any stored weather is for the wrong date. Silently triggering a network call or re-adding the entry to the sync queue would complicate sync state.
+**Decision:** A date edit clears the entry's weather data. The detail view offers a "Refresh weather" action that runs only the weather step of the sync pipeline for that entry. Entry date edits never set `needsSync`.
+**Alternatives:** Setting `needsSync` on a date edit, which would pull the entry back into the full sync queue.
+**Consequences:** Weather is blank until the user explicitly refreshes it. The entry does not re-enter the sync queue.
+
+### D-091 — Why EventReview separates extracted and edits *(unverified)*
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 8d-1
+**Context:** `EventReview` stores both the AI's original output (`extracted`) and any user edits (`edits`) as separate fields rather than merging them.
+**Decision:** The separation is preserved; the fields are not merged.
+**Alternatives:** Not recorded.
+**Consequences:** Keeping them separate lets the outcome store (D-041) distinguish confirmed-as-is from confirmed-after-edit, and retains the AI's original output for evaluation and debugging. *(These reasons are inferred from the design; no source document states them explicitly.)*
+
+### D-092 — Extraction schema uses Zod v4 z.toJSONSchema()
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 8d-1
+**Context:** D-060 specified using `zod-to-json-schema` to derive the tool definition from `ExtractedEventSchema`. Zod v4 introduced `z.toJSONSchema()` natively, and the codebase already uses it.
+**Decision:** The extraction schema tool definition is generated with Zod v4's built-in `z.toJSONSchema()`. The `zod-to-json-schema` package is not used.
+**Alternatives:** Keeping `zod-to-json-schema` (D-060).
+**Consequences:** One fewer dependency. `z.toJSONSchema()` ships with Zod v4, which is already required.
+
+### D-093 — Extraction rules (refined)
+**Type:** Product
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 8e-1
+**Context:** D-065 established extraction rules. Nursery pickup events need structured fields, and the entry date is needed for date resolution in the request builder.
+**Decision:** All rules from D-065 apply, plus:
+- `ExtractedEventSchema` gains nullable `nurseryName` and `variety`, set only when the text explicitly states them.
+- The request builder takes the entry date as an explicit parameter for relative-date resolution.
+- A lesson event with no resolved crop stays type `lesson`; it commits as a `GeneralNote` with `isLesson: true` (D-087).
+
+**Alternatives:** Not recorded.
+**Consequences:** Nursery Pickup events can prefill `InstanceQuickCreate` with nursery name and variety (D-095).
+
+### D-094 — Review card states (refined)
+**Type:** Product
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 8d-1
+**Context:** D-069 established review card states. Lesson events with no resolved crop were ambiguously treated by the Confirm-requires-instance rule.
+**Decision:** All rules from D-069 apply, plus: Confirm is enabled for a `lesson` event even when no crop instance is resolved, because a lesson without a crop commits as a `GeneralNote` (D-087) rather than a `CropEvent`. The instance-resolution requirement applies only to events that write a `CropEvent`.
+**Alternatives:** Not recorded.
+**Consequences:** Lesson events are never blocked by a missing instance.
+
+### D-095 — Missing instance check scope
+**Type:** Product
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 8d-1
+**Context:** D-070 defined a blocking Confirm notice for missing instances. It applied to all event types, but `general` and `lesson` events do not write a `CropEvent` and need no instance.
+**Decision:** The instance-resolution check applies only to events that write a `CropEvent`. `general` events and `lesson` events with no resolved crop skip the check entirely and may be confirmed without an instance.
+**Alternatives:** Not recorded.
+**Consequences:** Confirm is never blocked for `general` or `lesson` events.
+
+### D-096 — Re-run and staleness handling (refined)
+**Type:** Product
+**Status:** Current
+**Date:** 2026-10-14
+**Phase:** 8d-1
+**Context:** D-073 required a stale review to be re-run. Keep is now offered as an alternative, and re-run availability is scoped to when a PendingExtraction exists.
+**Decision:** When a review is stale (entry `updatedAt` later than extraction `createdAt`), the cards are shown but Confirm and Done are disabled. The user chooses Keep (sets `acknowledged` on the `PendingExtraction`, re-enables Confirm and Done) or Re-run (discards the extraction and starts fresh). Re-run is available only while a `PendingExtraction` exists; it disappears after Done. The discard warning fires for any confirmed card, including manually added ones.
+**Alternatives:** Requiring re-run on staleness (D-073).
+**Consequences:** Keep lets the user proceed without discarding cards they have already reviewed.
 
 ---
 
