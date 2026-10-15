@@ -24,10 +24,7 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install
-
-      - name: Install lightningcss Linux native binary
-        run: npm install --no-save "lightningcss-linux-x64-gnu@$(node -p "require('./node_modules/lightningcss/package.json').optionalDependencies['lightningcss-linux-x64-gnu']")"
+        run: rm -f package-lock.json && npm install
 
       - name: Run unit tests
         run: npm test
@@ -54,10 +51,7 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install
-
-      - name: Install lightningcss Linux native binary
-        run: npm install --no-save "lightningcss-linux-x64-gnu@$(node -p "require('./node_modules/lightningcss/package.json').optionalDependencies['lightningcss-linux-x64-gnu']")"
+        run: rm -f package-lock.json && npm install
 
       - name: Build
         run: npm run build
