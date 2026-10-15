@@ -74,6 +74,9 @@ There is no migration path. `openGardenDB()` creates all stores in a single `upg
 | `JournalEntry.yearMonth` | `date` | Month queries use a direct index lookup | Set on create. A date edit must update it, together with `EntryPhoto.entryDate`, in one transaction: `updateJournalEntryAndPhotoDates` (D-025). |
 | `EntryPhoto.entryDate` | the entry's `date` | Photo-by-year queries filter without a join | Set on create. Same cascade as above. |
 | `CropEvent.year` | `date` | Open-problem queries filter by year without a join | Set on create (D-026). |
+| `GeneralNote.date` | the entry's `date` | General-note dates match their entry for display and cascade accuracy | Set on create. A date edit must update all `GeneralNote` records for the entry in the same transaction as the entry and its photos (D-083). |
+| Entry weather | the entry's `date` | Weather is fetched for the date the entry records | Cleared on a date edit. Refreshed only by a user-started "Refresh weather" action on the detail view (D-090). |
+| `CropEvent.entryId` | set at commit, from the entry | Links a committed event back to its source entry | Set on commit (D-084). Committed event dates do not cascade from the entry; they change only through the 12b proposal (D-089). |
 
 ### Sparse `needsSync` index (D-022)
 
@@ -87,7 +90,7 @@ Photos are resized before storage and stored as `ArrayBuffer`, not `Blob`, becau
 
 ## 4. Sync pipeline
 
-Sync starts only when the user taps **Sync** in the Journal tab (D-010). `lib/sync.ts` runs it; `SyncSheet` is the view that lists unsynced entries and starts the sync.
+Sync starts from the Journal tab **Sync** button (D-010), or from the per-entry **Refresh weather** action on the detail view, which runs only the weather step. `lib/sync.ts` runs it; `SyncSheet` is the view that lists unsynced entries and starts the sync.
 
 For each unsynced entry there are two independent steps:
 
@@ -96,7 +99,7 @@ For each unsynced entry there are two independent steps:
 
 Before extraction, the pipeline checks that provider, model, and API key are configured (D-066). Token usage is logged as soon as a response arrives, before validation, so billed calls are always recorded even when the response is rejected (D-067). Extraction is never retried automatically; a failure shows a Retry button.
 
-`needsSync` clears when an entry is fully processed: after its review is confirmed if it has text, or after weather is filled if it is photo-only (D-057). Re-running extraction discards the `PendingExtraction` and warns if any card was already confirmed. A review is stale if the entry was edited after the extraction was created (`entry.updatedAt > pendingExtraction.createdAt`) and must be re-run (D-073).
+`needsSync` clears when an entry is fully processed: after its review is confirmed if it has text, or after weather is filled if it is photo-only (D-057). The `PendingExtraction` is deleted in the Done transaction. Re-running extraction discards the `PendingExtraction` and warns if any confirmed card, including manually added cards, would be lost. A review is stale if the entry was edited after the extraction was created (`entry.updatedAt > pendingExtraction.createdAt`); the cards are shown but Confirm and Done are disabled until the user chooses Keep or Re-run (D-096).
 
 ---
 
@@ -189,7 +192,7 @@ These must not be violated. Coding agents should check this list before writing 
 
 5. All writes go to IndexedDB first. Save paths make no network calls.
 6. No migration code. The `upgradeneeded` handler creates all stores from scratch, with no version checks.
-7. A date edit updates the entry and all its photos' `entryDate` in one `readwrite` transaction spanning both stores (§3).
+7. A date edit updates the entry, all its photos' `entryDate`, and all its `GeneralNote` dates in one `readwrite` transaction spanning the stores (§3).
 8. `needsSync` is `1` or absent, never `0` or `false` (§3).
 9. Photos are stored as `ArrayBuffer`; the store never contains a `Blob` (§3).
 10. All indexes are single-field (§3).

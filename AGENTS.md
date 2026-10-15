@@ -14,7 +14,7 @@ This file is a map. Read the documents it points to before changing code.
 
 - `ARCHITECTURE.md`: code map, data model, sync pipeline, error handling. §9 lists the invariants that must not be violated. Read §9 before touching `lib/db.ts`, the sync pipeline, AI code, or the service worker.
 - `docs/DECISIONS.md`: settled decisions (D-###) with rationale. Do not reverse a decision without asking.
-- `docs/[build-plan filename]`: canonical build plan. Current phase: [TBD].
+- `docs/BUILD_PLAN.md`: canonical build plan. Current phase: 8d-1.
 - `docs/exec-plans/active/`: the exec plan for the phase in progress.
 
 ## Commands
