@@ -77,6 +77,7 @@ There is no migration path. `openGardenDB()` creates all stores in a single `upg
 | `GeneralNote.date` | the entry's `date` | General-note dates match their entry for display and cascade accuracy | Set on create. A date edit must update all `GeneralNote` records for the entry in the same transaction as the entry and its photos (D-083). |
 | Entry weather | the entry's `date` | Weather is fetched for the date the entry records | Cleared on a date edit. Refreshed only by a user-started "Refresh weather" action on the detail view (D-090). |
 | `CropEvent.entryId` | set at commit, from the entry | Links a committed event back to its source entry | Set on commit (D-084). Committed event dates do not cascade from the entry; they change only through the 12b proposal (D-089). |
+| `JournalEntry.needsSync` | the entry's weather, text and `extractionReviewedAt` | `by-needsSync` lists unsynced entries without scanning the store | Written as 1 on create. Cleared, never set again, when the entry has weather and either no text or `extractionReviewedAt`. Applied after every write to weather or `extractionReviewedAt` (D-097). Edits never set it (D-090). |
 
 ### Sparse `needsSync` index (D-022)
 
@@ -99,7 +100,9 @@ For each unsynced entry there are two independent steps:
 
 Before extraction, the pipeline checks that provider, model, and API key are configured (D-066). Token usage is logged as soon as a response arrives, before validation, so billed calls are always recorded even when the response is rejected (D-067). Extraction is never retried automatically; a failure shows a Retry button.
 
-`needsSync` clears when an entry is fully processed: after its review is confirmed if it has text, or after weather is filled if it is photo-only (D-057). The `PendingExtraction` is deleted in the Done transaction. Re-running extraction discards the `PendingExtraction` and warns if any confirmed card, including manually added cards, would be lost. A review is stale if the entry was edited after the extraction was created (`entry.updatedAt > pendingExtraction.createdAt`); the cards are shown but Confirm and Done are disabled until the user chooses Keep or Re-run (D-096).
+`needsSync` clears when the entry has weather and either has no text or has `extractionReviewedAt` (D-097). The rule is applied after every write to `weatherC` or `extractionReviewedAt`, so the order of the two steps does not matter. The `PendingExtraction` is deleted in the Done transaction. Re-running extraction discards the `PendingExtraction` and warns if any confirmed card, including manually added cards, would be lost. A review is stale if the entry was edited after the extraction was created (`entry.updatedAt > pendingExtraction.createdAt`); the cards are shown but Confirm and Done are disabled until the user chooses Keep or Re-run (D-096).
+
+SyncSheet lists the entries with needsSync set, oldest first, with a weather state and an AI state per row. Failed states last for the session. A reopened sheet rebuilds its rows from stored data. An in-flight guard in lib/sync.ts allows one run at a time.
 
 ---
 

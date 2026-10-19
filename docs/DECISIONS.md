@@ -236,7 +236,7 @@ Entries written before this log existed have no dates. New entries include a **D
 **Context:** Listing unsynced entries should not scan the whole journal.
 **Decision:** New entries are written with `needsSync: 1`. The field is removed when the entry is synced. An index `by-needsSync` covers only records where the field exists, so `getUnsyncedEntries` reads only unsynced records. `syncedAt` is kept as a timestamp.
 **Alternatives:** An index on `syncedAt` (D-021).
-**Consequences:** When `needsSync` is cleared is covered by D-057.
+**Consequences:** When `needsSync` is cleared is covered by D-097.
 
 ### D-023 — IDs, test injection, and database singleton
 **Type:** Technical
@@ -621,7 +621,7 @@ Entries written before this log existed have no dates. New entries include a **D
 
 ### D-057 — When `needsSync` clears
 **Type:** Technical
-**Status:** Current
+**Status:** Superseded by D-097
 **Phase:** 8c
 **Context:** The unsynced list drives Sync & Verify, and some entries have nothing to extract.
 **Decision:**
@@ -721,7 +721,7 @@ Entries written before this log existed have no dates. New entries include a **D
 **Context:** A request without a provider, model, or key would fail.
 **Decision:** Before each extraction, check that provider, model, and the matching API key are all set. If not, skip the call and show a message pointing to Settings. The check runs on every sync, not once.
 **Alternatives:** Not recorded.
-**Consequences:** Mirrors the coordinate check for weather (D-052). Skipped entries stay unsynced (D-057).
+**Consequences:** Mirrors the coordinate check for weather (D-052). Skipped entries stay unsynced (D-097).
 
 ### D-067 — Usage logged before validation; no partial saves
 **Type:** Technical
@@ -819,7 +819,7 @@ Entries written before this log existed have no dates. New entries include a **D
 **Date:** 2026-10-14
 **Phase:** 12a
 **Context:** When an entry's date is edited, any stored weather is for the wrong date. Silently triggering a network call or re-adding the entry to the sync queue would complicate sync state.
-**Decision:** A date edit clears the entry's weather data. The detail view offers a "Refresh weather" action that runs only the weather step of the sync pipeline for that entry. Entry date edits never set `needsSync`.
+**Decision:** A date edit clears the entry's weather data. The detail view offers a "Refresh weather" action that runs only the weather step of the sync pipeline for that entry. Entry date edits never set `needsSync`. Refresh weather clears needsSync if the D-097 rule is then met.
 **Alternatives:** Setting `needsSync` on a date edit, which would pull the entry back into the full sync queue.
 **Consequences:** Weather is blank until the user explicitly refreshes it. The entry does not re-enter the sync queue.
 
@@ -886,6 +886,20 @@ Entries written before this log existed have no dates. New entries include a **D
 **Decision:** When a review is stale (entry `updatedAt` later than extraction `createdAt`), the cards are shown but Confirm and Done are disabled. The user chooses Keep (sets `acknowledged` on the `PendingExtraction`, re-enables Confirm and Done) or Re-run (discards the extraction and starts fresh). Re-run is available only while a `PendingExtraction` exists; it disappears after Done. The discard warning fires for any confirmed card, including manually added ones.
 **Alternatives:** Requiring re-run on staleness (D-073).
 **Consequences:** Keep lets the user proceed without discarding cards they have already reviewed.
+
+### D-097 — When `needsSync` clears (supersedes D-057)
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-19
+**Phase:** 8d-1
+**Context:** D-057 cleared `needsSync` for a text entry once its review was confirmed, whether or not weather had been filled, so an entry could leave the sync queue with no weather.
+**Decision:**
+- `needsSync` clears when the entry has `weatherC` and either has no text or has `extractionReviewedAt`.
+- `extractionReviewedAt` is an optional timestamp set in the Done transaction (8e-5).
+- The rule is applied after every write to `weatherC` or `extractionReviewedAt`, from Sync now, Refresh weather (D-090) and Done. The result does not depend on which write comes last.
+- Text entries with no AI configuration stay unsynced until AI is configured and the review is done, as in D-057.
+**Alternatives:** D-057's rule (clear on review whatever the weather). Reading the outcome records instead of a field (couples the orchestrator to the outcomes store).
+**Consequences:** An entry without weather stays in the sync queue until weather is filled, including when no location is set. Sync now fills it for queued entries. Refresh weather (D-090) remains the route for entries outside the queue, and clears the flag if the rule is met. Edits still never set `needsSync`.
 
 ---
 
