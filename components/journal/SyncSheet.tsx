@@ -72,7 +72,7 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
           return {
             entry,
             weatherStatus: 'pending' as WeatherStatus,
-            aiStatus: (entry.text?.trim() ? 'pending' : null) as AIStatus | null,
+            aiStatus: (entry.text.trim() ? 'pending' : null) as AIStatus | null,
             hasPendingExtraction: !!pending,
           }
         }),
@@ -208,7 +208,7 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
                     year: 'numeric',
                   })
                   return (
-                    <div key={row.entry.id} className="bg-cream rounded-xl px-3 py-2.5 flex items-center gap-2">
+                    <div key={row.entry.id} className="bg-cream rounded-xl px-3 py-2.5 flex items-center gap-2" data-date={row.entry.date}>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-forest">{label}</p>
                         {row.entry.text ? (

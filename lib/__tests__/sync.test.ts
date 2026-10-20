@@ -96,6 +96,48 @@ describe('runSync: gate conditions for weather and AI steps', () => {
     const withTextAI = calls.filter(([id, step]) => id === withText.id && step === 'ai')
     expect(withTextAI.length).toBeGreaterThan(0) // AI step ran
   })
+
+  it('AI step is skipped when extractionReviewedAt is set', async () => {
+    const db = await freshDb()
+    await saveSettings(baseSettings, db)
+    const entry = await createJournalEntry(
+      { date: '2026-06-01', text: 'Planted tomatoes', nextSeasonNote: '', weatherC: null, weatherIcon: null, photoIds: [], createdAt: '2026-06-01T10:00:00Z', extractionReviewedAt: '2026-06-01T11:00:00Z' },
+      db,
+    )
+
+    const calls: ProgressCall[] = []
+    await runSync({
+      database: db,
+      weatherFetcher: successWeather,
+      onProgress: (id, step, status) => calls.push([id, step, status]),
+    })
+
+    expect(finalStatus(calls, entry.id, 'ai')).toBe('skipped')
+  })
+
+  it('AI step is skipped when a PendingExtraction already exists', async () => {
+    const db = await freshDb()
+    await saveSettings(baseSettings, db)
+    const entry = await createJournalEntry(
+      { date: '2026-06-01', text: 'Planted tomatoes', nextSeasonNote: '', weatherC: null, weatherIcon: null, photoIds: [], createdAt: '2026-06-01T10:00:00Z' },
+      db,
+    )
+    await db.put('pendingExtractions', {
+      entryId: entry.id,
+      events: [],
+      usage: { inputTokens: 100, outputTokens: 50 },
+      createdAt: '2026-06-01T11:00:00Z',
+    })
+
+    const calls: ProgressCall[] = []
+    await runSync({
+      database: db,
+      weatherFetcher: successWeather,
+      onProgress: (id, step, status) => calls.push([id, step, status]),
+    })
+
+    expect(finalStatus(calls, entry.id, 'ai')).toBe('skipped')
+  })
 })
 
 // ── failed weather ────────────────────────────────────────────────────────────
@@ -118,6 +160,9 @@ describe('runSync: failed weather does not stop run or AI step', () => {
 
     expect(finalStatus(calls, entry.id, 'weather')).toBe('failed')
     expect(finalStatus(calls, entry.id, 'ai')).toBeDefined()
+    // AC-2: needsSync stays set when weather failed (weatherC still null)
+    const stored = await db.get('journalEntries', entry.id)
+    expect(stored!.needsSync).toBe(1)
   })
 
   it('run continues to next entry after a weather failure', async () => {
@@ -274,6 +319,11 @@ describe('runSync: failed AI step does not stop run or weather step', () => {
     expect(finalStatus(calls, e1.id, 'ai')).toBe('failed')
     expect(finalStatus(calls, e2.id, 'weather')).toBeDefined()
     expect(finalStatus(calls, e2.id, 'ai')).toBe('failed')
+    // AC-17: needsSync stays set on text entries when AI failed (no extractionReviewedAt)
+    const storedE1 = await db.get('journalEntries', e1.id)
+    const storedE2 = await db.get('journalEntries', e2.id)
+    expect(storedE1!.needsSync).toBe(1)
+    expect(storedE2!.needsSync).toBe(1)
   })
 })
 

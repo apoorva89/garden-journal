@@ -185,15 +185,15 @@ test.describe('SyncSheet rows: oldest-first order and state columns', () => {
     await page.reload()
     await page.getByRole('button', { name: /Sync/ }).click()
 
-    const dates = await page.locator('.bg-cream p.text-forest').allTextContents()
-    // Oldest entry date should appear first
-    expect(dates[0]).toContain('Jun')
+    const isoDates = await page.locator('[data-date]').evaluateAll((els) =>
+      els.map((el) => el.getAttribute('data-date')),
+    )
     // All three entries present
-    expect(dates).toHaveLength(3)
-    // Check ordering: first date is earlier than last
-    const firstDate = new Date(dates[0].replace(/\w+,\s/, ''))
-    const lastDate = new Date(dates[2].replace(/\w+,\s/, ''))
-    expect(firstDate.getTime()).toBeLessThan(lastDate.getTime())
+    expect(isoDates).toHaveLength(3)
+    // Ordering by ISO date string: oldest first
+    expect(isoDates[0]).toBe('2026-06-01')
+    expect(isoDates[1]).toBe('2026-06-10')
+    expect(isoDates[2]).toBe('2026-06-20')
   })
 
   test('no-text entry has no AI state shown', async ({ page }) => {
