@@ -64,25 +64,28 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
 
   useEffect(() => {
     async function load() {
-      const [entries, s] = await Promise.all([getUnsyncedEntries(), getSettings()])
-      // oldest-first
-      const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date))
-      const initial: RowState[] = await Promise.all(
-        sorted.map(async (entry) => {
-          const pending = await getPendingExtractionByEntryId(entry.id)
-          return {
-            entry,
-            weatherStatus: (entry.weatherC != null ? 'synced' : 'pending') as WeatherStatus,
-            aiStatus: (entry.text.trim()
-              ? pending ? 'review-pending' : 'pending'
-              : null) as AIStatus | null,
-            hasPendingExtraction: !!pending,
-          }
-        }),
-      )
-      setRows(initial)
-      setSettings(s)
-      setLoaded(true)
+      try {
+        const [entries, s] = await Promise.all([getUnsyncedEntries(), getSettings()])
+        // oldest-first
+        const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date))
+        const initial: RowState[] = await Promise.all(
+          sorted.map(async (entry) => {
+            const pending = await getPendingExtractionByEntryId(entry.id)
+            return {
+              entry,
+              weatherStatus: (entry.weatherC != null ? 'synced' : 'pending') as WeatherStatus,
+              aiStatus: (entry.text?.trim()
+                ? pending ? 'review-pending' : 'pending'
+                : null) as AIStatus | null,
+              hasPendingExtraction: !!pending,
+            }
+          }),
+        )
+        setRows(initial)
+        setSettings(s)
+      } finally {
+        setLoaded(true)
+      }
     }
     load()
   }, [])
