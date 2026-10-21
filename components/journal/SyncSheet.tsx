@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { flushSync } from 'react-dom'
 import Link from 'next/link'
 import { getUnsyncedEntries, getSettings, getPendingExtractionByEntryId } from '@/lib/db'
 import type { JournalEntry, Settings } from '@/lib/db'
@@ -87,6 +88,14 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
   async function handleSync() {
     setSyncing(true)
     setSummary(null)
+    // Reset all row statuses so each run shows a clean slate
+    setRows((prev) =>
+      prev.map((row) => ({
+        ...row,
+        weatherStatus: 'pending' as WeatherStatus,
+        aiStatus: row.aiStatus !== null ? ('pending' as AIStatus) : null,
+      })),
+    )
 
     type ProgressEntry = [string, 'weather' | 'ai', WeatherStatus | AIStatus]
     const log: ProgressEntry[] = []
@@ -94,13 +103,16 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
     await runSync({
       onProgress(entryId, step, status) {
         log.push([entryId, step, status])
-        setRows((prev) =>
-          prev.map((row) => {
-            if (row.entry.id !== entryId) return row
-            if (step === 'weather') return { ...row, weatherStatus: status as WeatherStatus }
-            return { ...row, aiStatus: status as AIStatus }
-          }),
-        )
+        // flushSync forces a synchronous render per step so status is visible in real-time
+        flushSync(() => {
+          setRows((prev) =>
+            prev.map((row) => {
+              if (row.entry.id !== entryId) return row
+              if (step === 'weather') return { ...row, weatherStatus: status as WeatherStatus }
+              return { ...row, aiStatus: status as AIStatus }
+            }),
+          )
+        })
       },
     })
 
@@ -138,8 +150,9 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
     ? settings.apiKeys[settings.aiProvider as keyof typeof settings.apiKeys]
     : undefined
   const hasAIConfig = !!(settings?.aiProvider && settings?.aiModel && aiKey)
+  const hasTextEntries = rows.some((row) => row.aiStatus !== null)
   const missingLocation = loaded && !hasLocation
-  const missingAI = loaded && !hasAIConfig
+  const missingAI = loaded && hasTextEntries && !hasAIConfig
 
   const totalEntries = rows.length
 
