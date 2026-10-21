@@ -93,11 +93,11 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
   async function handleSync() {
     setSyncing(true)
     setSummary(null)
-    // Reset all row statuses so each run shows a clean slate
+    // Reset row statuses — keep 'synced' weather in place (gate in sync.ts skips re-fetch)
     setRows((prev) =>
       prev.map((row) => ({
         ...row,
-        weatherStatus: 'pending' as WeatherStatus,
+        weatherStatus: (row.weatherStatus === 'synced' ? 'synced' : 'pending') as WeatherStatus,
         aiStatus: row.aiStatus !== null ? ('pending' as AIStatus) : null,
       })),
     )
@@ -280,7 +280,9 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
               {summary && (
                 <div className="mb-3 text-xs text-muted space-y-0.5" data-testid="sync-summary">
                   <p>
-                    Weather: {summary.weatherSynced} synced, {summary.weatherFailed} failed, {summary.weatherSkipped} skipped
+                    {summary.weatherSynced === 0 && summary.weatherFailed === 0
+                      ? 'Weather: no updates needed'
+                      : `Weather: ${summary.weatherSynced} synced${summary.weatherFailed > 0 ? `, ${summary.weatherFailed} failed` : ''}`}
                   </p>
                   <p>
                     AI: {summary.aiQueued} queued, {summary.aiFailed} failed, {summary.aiSkipped} skipped
