@@ -9,6 +9,8 @@ describe('ExtractedEventSchema', () => {
       linkedProblemRef: null,
       notes: 'Plants looking healthy with new growth',
       eventDate: '2026-07-01',
+      nurseryName: null,
+      variety: null,
     })
     expect(result.eventType).toBe('observation')
     expect(result.matchedRosterName).toBe('Tomatoes')
@@ -23,10 +25,14 @@ describe('ExtractedEventSchema', () => {
       linkedProblemRef: null,
       notes: 'Garden looking good overall',
       eventDate: null,
+      nurseryName: null,
+      variety: null,
     })
     expect(result.matchedRosterName).toBeNull()
     expect(result.linkedProblemRef).toBeNull()
     expect(result.eventDate).toBeNull()
+    expect(result.nurseryName).toBeNull()
+    expect(result.variety).toBeNull()
   })
 
   it('accepts all valid eventType values', () => {
@@ -38,6 +44,8 @@ describe('ExtractedEventSchema', () => {
         linkedProblemRef: null,
         notes: 'test note',
         eventDate: null,
+        nurseryName: null,
+        variety: null,
       })
       expect(result.eventType).toBe(eventType)
     }
@@ -50,6 +58,8 @@ describe('ExtractedEventSchema', () => {
       linkedProblemRef: 'P1',
       notes: 'Applied neem oil to affected leaves',
       eventDate: null,
+      nurseryName: null,
+      variety: null,
     })
     expect(result.linkedProblemRef).toBe('P1')
   })
@@ -61,6 +71,8 @@ describe('ExtractedEventSchema', () => {
         matchedRosterName: null,
         linkedProblemRef: null,
         eventDate: null,
+        nurseryName: null,
+        variety: null,
       }),
     ).toThrow()
   })
@@ -73,6 +85,8 @@ describe('ExtractedEventSchema', () => {
         linkedProblemRef: null,
         notes: 'test',
         eventDate: null,
+        nurseryName: null,
+        variety: null,
       }),
     ).toThrow()
   })
@@ -85,6 +99,8 @@ describe('ExtractedEventSchema', () => {
         linkedProblemRef: null,
         notes: 'test',
         eventDate: null,
+        nurseryName: null,
+        variety: null,
       }),
     ).toThrow()
   })
@@ -97,7 +113,35 @@ describe('ExtractedEventSchema', () => {
         linkedProblemRef: null,
         notes: 'test',
         eventDate: 20260701,
+        nurseryName: null,
+        variety: null,
       }),
     ).toThrow()
+  })
+
+  it('accepts nurseryName and variety; updated fixtures pass', () => {
+    const pickup = ExtractedEventSchema.parse({
+      eventType: 'nursery_pickup',
+      matchedRosterName: 'Tomatoes',
+      linkedProblemRef: null,
+      notes: 'Picked up Sun Gold tomatoes from Thompson Nursery.',
+      eventDate: '2026-05-10',
+      nurseryName: 'Thompson Nursery',
+      variety: 'Sun Gold',
+    })
+    expect(pickup.nurseryName).toBe('Thompson Nursery')
+    expect(pickup.variety).toBe('Sun Gold')
+
+    const nullFields = ExtractedEventSchema.parse({
+      eventType: 'nursery_pickup',
+      matchedRosterName: 'Peppers',
+      linkedProblemRef: null,
+      notes: 'Picked up pepper plants.',
+      eventDate: '2026-05-12',
+      nurseryName: null,
+      variety: null,
+    })
+    expect(nullFields.nurseryName).toBeNull()
+    expect(nullFields.variety).toBeNull()
   })
 })
