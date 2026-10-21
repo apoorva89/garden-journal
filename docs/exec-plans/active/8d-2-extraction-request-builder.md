@@ -120,7 +120,12 @@ Adds a field derived from another field: No. `nurseryName` and `variety` are new
 
 ## 9. Progress
 
-None.
+- [x] Tests written and confirmed failing before implementation
+- [x] `lib/ai/extractionSpec.ts` updated: `nurseryName` and `variety` added; `extractionToolSchema` removed
+- [x] `lib/ai/requestBuilder.ts` created: `buildExtractionRequest`, `ExtractionRequest`, `ExtractionTool`, `BuildExtractionInput`
+- [x] `lib/__tests__/extraction.test.ts` updated: all fixtures include `nurseryName`/`variety`; AC-7 test added
+- [x] `lib/__tests__/requestBuilder.test.ts` created: AC-1 through AC-6, AC-8
+- [x] All 67 unit tests pass; typecheck clean; lint errors are pre-existing (none in changed files)
 
 ---
 

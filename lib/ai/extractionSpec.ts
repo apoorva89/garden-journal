@@ -6,9 +6,8 @@ export const ExtractedEventSchema = z.object({
   linkedProblemRef: z.string().nullable(),
   notes: z.string(),
   eventDate: z.string().nullable(),
+  nurseryName: z.string().nullable(),
+  variety: z.string().nullable(),
 })
 
 export type ExtractedEvent = z.infer<typeof ExtractedEventSchema>
-
-// JSON schema passed to the model as the tool/function definition
-export const extractionToolSchema = z.toJSONSchema(ExtractedEventSchema)
