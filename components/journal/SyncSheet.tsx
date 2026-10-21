@@ -72,8 +72,10 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
           const pending = await getPendingExtractionByEntryId(entry.id)
           return {
             entry,
-            weatherStatus: 'pending' as WeatherStatus,
-            aiStatus: (entry.text.trim() ? 'pending' : null) as AIStatus | null,
+            weatherStatus: (entry.weatherC != null ? 'synced' : 'pending') as WeatherStatus,
+            aiStatus: (entry.text.trim()
+              ? pending ? 'review-pending' : 'pending'
+              : null) as AIStatus | null,
             hasPendingExtraction: !!pending,
           }
         }),
