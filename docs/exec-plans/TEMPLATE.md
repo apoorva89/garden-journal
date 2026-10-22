@@ -56,7 +56,7 @@ If the phase requires changing an invariant in ARCHITECTURE §9, stop and ask be
 ## 6. Dependencies and stop-and-ask triggers
 
 - New packages: none / list [STOP-ASK]
-- lib/db.ts schema or store changes: none / describe [STOP-ASK]
+- lib/db.ts schema or store changes: none / describe [STOP-ASK]. If a store, index, or field is added to `upgrade()`, note it here and add a DB-wipe step to the section 9 done checklist — there is no migration path (D-034, D-081).
 - Service worker, manifest, or base path changes: none / describe [STOP-ASK]
 - AI provider behaviour or extraction spec changes: none / describe [STOP-ASK]
 - Build plan edits: none / describe [STOP-ASK]
@@ -85,6 +85,7 @@ Checklist, mandatory. Timestamped in UTC. Record the failing-test step as well a
 
 - [ ] YYYY-MM-DD HH:MMZ: AC-1 test written, failing (reason: ...)
 - [ ] YYYY-MM-DD HH:MMZ: AC-1 passing
+- [ ] (If schema changed) Wipe the database on each test device before manual testing — Settings → Wipe Database, then re-create test entries. No migration path exists (D-034, D-081).
 
 
 
