@@ -901,36 +901,6 @@ Entries written before this log existed have no dates. New entries include a **D
 **Alternatives:** D-057's rule (clear on review whatever the weather). Reading the outcome records instead of a field (couples the orchestrator to the outcomes store).
 **Consequences:** An entry without weather stays in the sync queue until weather is filled, including when no location is set. Sync now fills it for queued entries. Refresh weather (D-090) remains the route for entries outside the queue, and clears the flag if the rule is met. Edits still never set `needsSync`.
 
-### D-098 — Sync orchestrator progress callback shape
-**Type:** Technical
-**Status:** Current
-**Date:** 2026-10-19
-**Phase:** 8d-1
-**Context:** The SyncSheet needs real-time per-entry status updates as the orchestrator runs. Options: (a) `onProgress(entryId, step, status)` callback invoked synchronously per transition; (b) `AsyncIterable`; (c) database polling.
-**Decision:** `onProgress(entryId: string, step: 'weather' | 'ai', status: WeatherStatus | AIStatus)` — a simple callback injected as a `SyncOptions` field, invoked by the orchestrator after each step transition.
-**Alternatives:** AsyncIterable (b): more expressive but adds complexity without benefit here. Database polling (c): couples the UI to specific DB fields and adds latency.
-**Consequences:** Callers receive at least one call per step per entry (e.g. `'fetching'` then `'synced'`). Tests assert the *last* call for each entry+step to get the terminal status.
-
-### D-099 — In-flight guard surface
-**Type:** Technical
-**Status:** Current
-**Date:** 2026-10-19
-**Phase:** 8d-1
-**Context:** The SyncSheet button must be disabled if a sync run is already in progress when the sheet opens (e.g., sheet closed mid-run and reopened). Options: (a) module-level `running` flag + exported `isRunning()`; (b) prop drilling from the parent; (c) React context.
-**Decision:** Export `isRunning(): boolean` from `lib/sync.ts`. `SyncSheet` reads it on mount to set initial `syncing` state, and polls every 200 ms while `syncing` to re-enable the button when the run finishes.
-**Alternatives:** Prop drilling (b): adds surface area across every parent. React context (c): unnecessary complexity for a single boolean.
-**Consequences:** The guard is a module-level singleton; two tabs sharing the same module would contend, but the app targets installed single-tab use.
-
-### D-100 — AI call site in the 8d-1 orchestrator stub
-**Type:** Technical
-**Status:** Current
-**Date:** 2026-10-19
-**Phase:** 8d-1
-**Context:** Phase 8d-1 wires up the sync orchestrator skeleton; the real AI provider is wired in a later phase. Options: (a) call `aiProvider.extract()` on the injected `StubAIProvider` (which throws "not implemented") and report the thrown error as `'failed'`; (b) skip the AI step without calling the provider; (c) call the provider and treat any result as success.
-**Decision:** Option (a): the orchestrator always calls `aiProvider.extract()` on text entries that pass the gate check. The `StubAIProvider` throws, which is caught and reported as `'failed'`. Phase 8d-5 replaces `StubAIProvider` with the real provider without changing the orchestrator skeleton.
-**Alternatives:** Option (b): hides the real code path and makes phase 8d-5 a structural change, not a provider swap.
-**Consequences:** In phase 8d-1 all AI steps report `'failed'`. The orchestrator does not change when the real provider is wired in.
-
 ---
 
 ## Infrastructure & testing
