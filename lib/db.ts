@@ -67,6 +67,8 @@ export interface JournalEntry {
   needsSync?: 1
   createdAt: string
   updatedAt: string
+  /** Set in the Done transaction (8e-5). Part of the D-097 needsSync clearing rule. */
+  extractionReviewedAt?: string
 }
 
 export interface CropEvent {
@@ -193,7 +195,7 @@ interface GardenDBSchema extends DBSchema {
   }
 }
 
-type GardenDB = IDBPDatabase<GardenDBSchema>
+export type GardenDB = IDBPDatabase<GardenDBSchema>
 
 // ── Open / Singleton ──────────────────────────────────────────────────────────
 
@@ -554,4 +556,40 @@ export async function addLessonToCropType(cropTypeId: string, text: string, data
   const lesson: Lesson = { id: nanoid(), text, createdAt: new Date().toISOString() }
   await d.put('cropTypes', { ...cropType, lessons: [...cropType.lessons, lesson] })
   return lesson
+}
+
+// ── Sync helpers ──────────────────────────────────────────────────────────────
+
+export async function applyNeedsSyncRule(entryId: string, database?: GardenDB): Promise<JournalEntry> {
+  const d = await useDb(database)
+  const entry = await d.get('journalEntries', entryId)
+  if (!entry) throw new Error(`JournalEntry not found: ${entryId}`)
+  const shouldClear = entry.weatherC != null && (!entry.text || !!entry.extractionReviewedAt)
+  if (shouldClear) {
+    // omit needsSync so the stored record has it absent, not 0/false (§9 invariant 8)
+    const cleared = Object.fromEntries(Object.entries(entry).filter(([k]) => k !== 'needsSync')) as JournalEntry
+    await d.put('journalEntries', cleared)
+    return cleared
+  }
+  return entry
+}
+
+export async function writeEntryWeather(
+  entryId: string,
+  weather: { weatherC: number; weatherIcon: string },
+  database?: GardenDB,
+): Promise<JournalEntry> {
+  const d = await useDb(database)
+  const entry = await d.get('journalEntries', entryId)
+  if (!entry) throw new Error(`JournalEntry not found: ${entryId}`)
+  // Write without touching updatedAt (D-085: updatedAt bumped only by text/nextSeasonNote/date edits)
+  await d.put('journalEntries', { ...entry, weatherC: weather.weatherC, weatherIcon: weather.weatherIcon })
+  return applyNeedsSyncRule(entryId, database)
+}
+
+export async function getPendingExtractionByEntryId(
+  entryId: string,
+  database?: GardenDB,
+): Promise<PendingExtraction | undefined> {
+  return (await useDb(database)).get('pendingExtractions', entryId)
 }
