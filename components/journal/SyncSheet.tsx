@@ -116,7 +116,11 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
           setRows((prev) =>
             prev.map((row) => {
               if (row.entry.id !== entryId) return row
-              if (step === 'weather') return { ...row, weatherStatus: status as WeatherStatus }
+              if (step === 'weather') {
+                // Don't overwrite 'synced' with 'skipped' — consistent with the reset above
+                if (status === 'skipped' && row.weatherStatus === 'synced') return row
+                return { ...row, weatherStatus: status as WeatherStatus }
+              }
               return { ...row, aiStatus: status as AIStatus }
             }),
           )
