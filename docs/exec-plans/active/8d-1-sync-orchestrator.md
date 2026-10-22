@@ -156,6 +156,7 @@ All acceptance criteria implemented and tests passing (2026-10-20):
 - AC-1 through AC-5, AC-7, AC-19: unit tests in `lib/__tests__/sync.test.ts` — pass (79/79)
 - AC-12 through AC-16: e2e tests in `e2e/sync.spec.ts` — pass in Chromium (48/48 + 1 skip SW); WebKit AC-15 tests intentionally skipped per Q-2 decision
 - Done checklist: lint (53 pre-existing errors, 0 new), typecheck clean, all tests pass, build passes
+- Manual check (schema): **Wipe the database before running any manual tests on this branch.** Any PR that adds a store, index, or field to the `upgrade()` handler requires a wipe because there is no migration path (D-034, D-081). Use Settings → Wipe Database, then re-create test entries.
 
 ---
 
@@ -164,6 +165,7 @@ All acceptance criteria implemented and tests passing (2026-10-20):
 - The `useDb` utility generates ESLint false-positive `react-hooks/rules-of-hooks` errors for every call in `lib/db.ts`. These are pre-existing; we added 3 new functions, each generating one more false-positive. Total remains 53 errors before and after.
 - WebKit AC-15 tests (slow-fetch guard) are scoped to Chromium only per Q-2.
 - The `navigation.spec.ts:tab bar navigates between tabs` test times out in WebKit — confirmed pre-existing on `main` (not introduced by this PR).
+- **Silent "All entries are synced" when DB schema is stale.** `SyncSheet.load()` originally used a bare `try/finally` with no `catch`. When a store added in a later migration (e.g. `pendingExtractions`, added in PR #17 without bumping the DB version) is absent from an older device's IndexedDB, `getPendingExtractionByEntryId` throws a `DOMException`. The bare `finally` swallowed this, left `rows = []`, and rendered "All entries are synced" instead of an error. Fixed: added a `catch` block that sets `loadError = true`, rendering an explicit "schema may be out of date — wipe in Settings" message. Root trigger is the no-migration-path policy (D-034, D-081): any schema change requires a DB wipe on test devices.
 
 ---
 

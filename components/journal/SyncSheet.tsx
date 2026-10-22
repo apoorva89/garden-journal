@@ -52,6 +52,7 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
   const [syncing, setSyncing] = useState(isRunning())
   const [summary, setSummary] = useState<SyncSummary | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const [loadError, setLoadError] = useState(false)
 
   // When the sheet opens while a run is in progress, poll until it finishes
   useEffect(() => {
@@ -83,6 +84,8 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
         )
         setRows(initial)
         setSettings(s)
+      } catch {
+        setLoadError(true)
       } finally {
         setLoaded(true)
       }
@@ -180,6 +183,16 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
         {!loaded ? (
           <div className="flex-1 flex items-center justify-center py-8">
             <p className="text-sm text-muted">Loading…</p>
+          </div>
+        ) : loadError ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-12 px-4">
+            <p className="text-sm text-muted text-center" data-testid="load-error">
+              Could not read entries. The database schema may be out of date — wipe it in{' '}
+              <Link href="/settings" onClick={onClose} className="text-forest underline">
+                Settings
+              </Link>
+              .
+            </p>
           </div>
         ) : totalEntries === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-12 px-4">
