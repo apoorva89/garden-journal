@@ -1,53 +1,172 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { flushSync } from 'react-dom'
 import Link from 'next/link'
-import { getUnsyncedEntries, getSettings, updateJournalEntry } from '@/lib/db'
+import { getUnsyncedEntries, getSettings, getPendingExtractionByEntryId } from '@/lib/db'
 import type { JournalEntry, Settings } from '@/lib/db'
-import { fetchWeatherForDate } from '@/lib/weatherSync'
+import { runSync, isRunning } from '@/lib/sync'
+import type { WeatherStatus, AIStatus } from '@/lib/sync'
+
+interface RowState {
+  entry: JournalEntry
+  weatherStatus: WeatherStatus
+  /** null = no AI column (entry has no text) */
+  aiStatus: AIStatus | null
+  hasPendingExtraction: boolean
+}
+
+interface SyncSummary {
+  weatherSynced: number
+  weatherFailed: number
+  weatherSkipped: number
+  aiQueued: number
+  aiFailed: number
+  aiSkipped: number
+}
 
 interface Props {
   onClose: () => void
   onSynced: () => void
 }
 
+const WEATHER_LABEL: Record<WeatherStatus, string> = {
+  pending: '—',
+  fetching: '…',
+  synced: '✓',
+  failed: '✗',
+  skipped: '–',
+}
+
+const AI_LABEL: Record<AIStatus, string> = {
+  pending: '—',
+  running: '…',
+  failed: '✗',
+  'review-pending': '⊙',
+  skipped: '–',
+}
+
 export default function SyncSheet({ onClose, onSynced }: Props) {
-  const [entries, setEntries] = useState<JournalEntry[]>([])
+  const [rows, setRows] = useState<RowState[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
-  const [syncing, setSyncing] = useState(false)
-  const [result, setResult] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(isRunning())
+  const [summary, setSummary] = useState<SyncSummary | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const [loadError, setLoadError] = useState(false)
+
+  // When the sheet opens while a run is in progress, poll until it finishes
+  useEffect(() => {
+    if (!syncing) return
+    const interval = setInterval(() => {
+      if (!isRunning()) setSyncing(false)
+    }, 200)
+    return () => clearInterval(interval)
+  }, [syncing])
 
   useEffect(() => {
-    Promise.all([getUnsyncedEntries(), getSettings()]).then(([es, s]) => {
-      setEntries(es.sort((a, b) => b.date.localeCompare(a.date)))
-      setSettings(s)
-      setLoaded(true)
-    })
+    async function load() {
+      try {
+        const [entries, s] = await Promise.all([getUnsyncedEntries(), getSettings()])
+        // oldest-first
+        const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date))
+        const initial: RowState[] = await Promise.all(
+          sorted.map(async (entry) => {
+            const pending = await getPendingExtractionByEntryId(entry.id)
+            return {
+              entry,
+              weatherStatus: (entry.weatherC != null ? 'synced' : 'pending') as WeatherStatus,
+              aiStatus: (entry.text?.trim()
+                ? pending ? 'review-pending' : 'pending'
+                : null) as AIStatus | null,
+              hasPendingExtraction: !!pending,
+            }
+          }),
+        )
+        setRows(initial)
+        setSettings(s)
+      } catch {
+        setLoadError(true)
+      } finally {
+        setLoaded(true)
+      }
+    }
+    load()
   }, [])
 
   async function handleSync() {
-    if (!settings?.latitude || !settings?.longitude) return
     setSyncing(true)
-    setResult(null)
+    setSummary(null)
+    // Reset row statuses — keep 'synced' weather in place (gate in sync.ts skips re-fetch)
+    setRows((prev) =>
+      prev.map((row) => ({
+        ...row,
+        weatherStatus: (row.weatherStatus === 'synced' ? 'synced' : 'pending') as WeatherStatus,
+        aiStatus: row.aiStatus !== null ? ('pending' as AIStatus) : null,
+      })),
+    )
 
-    let synced = 0
-    for (const entry of entries) {
-      const weather = await fetchWeatherForDate(entry.date, settings.latitude, settings.longitude)
-      if (weather) {
-        await updateJournalEntry({ ...entry, weatherC: weather.weatherC, weatherIcon: weather.weatherIcon })
-        synced++
+    type ProgressEntry = [string, 'weather' | 'ai', WeatherStatus | AIStatus]
+    const log: ProgressEntry[] = []
+
+    await runSync({
+      onProgress(entryId, step, status) {
+        log.push([entryId, step, status])
+        // flushSync forces a synchronous render per step so status is visible in real-time
+        flushSync(() => {
+          setRows((prev) =>
+            prev.map((row) => {
+              if (row.entry.id !== entryId) return row
+              if (step === 'weather') {
+                // Don't overwrite 'synced' with 'skipped' — consistent with the reset above
+                if (status === 'skipped' && row.weatherStatus === 'synced') return row
+                return { ...row, weatherStatus: status as WeatherStatus }
+              }
+              return { ...row, aiStatus: status as AIStatus }
+            }),
+          )
+        })
+      },
+    })
+
+    // Compute post-run summary
+    const newSummary: SyncSummary = { weatherSynced: 0, weatherFailed: 0, weatherSkipped: 0, aiQueued: 0, aiFailed: 0, aiSkipped: 0 }
+    for (const [, step, status] of log) {
+      if (step === 'weather') {
+        if (status === 'synced') newSummary.weatherSynced++
+        else if (status === 'failed') newSummary.weatherFailed++
+        else if (status === 'skipped') newSummary.weatherSkipped++
+      } else {
+        if (status === 'review-pending') newSummary.aiQueued++
+        else if (status === 'failed') newSummary.aiFailed++
+        else if (status === 'skipped') newSummary.aiSkipped++
       }
     }
 
+    // Re-read PendingExtractions after the run (future phases may create them)
+    const entryIds = rows.map((r) => r.entry.id)
+    const pendingMap: Record<string, boolean> = {}
+    await Promise.all(
+      entryIds.map(async (id) => {
+        pendingMap[id] = !!(await getPendingExtractionByEntryId(id))
+      }),
+    )
+    setRows((prev) => prev.map((row) => ({ ...row, hasPendingExtraction: pendingMap[row.entry.id] ?? row.hasPendingExtraction })))
+
     setSyncing(false)
-    setResult(`Weather synced for ${synced} of ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}`)
+    setSummary(newSummary)
     onSynced()
-    const updated = await getUnsyncedEntries()
-    setEntries(updated.sort((a, b) => b.date.localeCompare(a.date)))
   }
 
   const hasLocation = settings?.latitude != null && settings?.longitude != null
+  const aiKey = settings?.aiProvider
+    ? settings.apiKeys[settings.aiProvider as keyof typeof settings.apiKeys]
+    : undefined
+  const hasAIConfig = !!(settings?.aiProvider && settings?.aiModel && aiKey)
+  const hasTextEntries = rows.some((row) => row.aiStatus !== null)
+  const missingLocation = loaded && !hasLocation
+  const missingAI = loaded && hasTextEntries && !hasAIConfig
+
+  const totalEntries = rows.length
 
   return (
     <>
@@ -69,20 +188,54 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
           <div className="flex-1 flex items-center justify-center py-8">
             <p className="text-sm text-muted">Loading…</p>
           </div>
-        ) : entries.length === 0 ? (
+        ) : loadError ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-12 px-4">
+            <p className="text-sm text-muted text-center" data-testid="load-error">
+              Could not read entries. The database schema may be out of date — wipe it in{' '}
+              <Link href="/settings" onClick={onClose} className="text-forest underline">
+                Settings
+              </Link>
+              .
+            </p>
+          </div>
+        ) : totalEntries === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-12 px-4">
             <span className="text-4xl mb-3" aria-hidden>✓</span>
             <p className="text-sm text-muted">All entries are synced</p>
           </div>
         ) : (
           <>
+            {/* Missing config banner */}
+            {(missingLocation || missingAI) && (
+              <div className="mx-4 mb-3 px-3 py-2.5 bg-bone rounded-xl text-xs text-muted" data-testid="missing-config-banner">
+                {missingLocation && missingAI
+                  ? 'Location and AI config missing. '
+                  : missingLocation
+                  ? 'Location not set. '
+                  : 'AI not configured. '}
+                Set up in{' '}
+                <Link href="/settings" onClick={onClose} className="text-forest underline">
+                  Settings
+                </Link>
+                .
+              </div>
+            )}
+
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               <p className="text-xs text-muted mb-3 uppercase tracking-wide font-semibold">
-                {entries.length} {entries.length === 1 ? 'entry' : 'entries'} awaiting sync
+                {totalEntries} {totalEntries === 1 ? 'entry' : 'entries'} awaiting sync
               </p>
+
+              {/* Column headers */}
+              <div className="flex items-center gap-2 px-3 mb-1">
+                <p className="flex-1 text-xs font-semibold text-muted uppercase tracking-wide">Entry</p>
+                <p className="w-16 text-center text-xs font-semibold text-muted uppercase tracking-wide">Weather</p>
+                <p className="w-12 text-center text-xs font-semibold text-muted uppercase tracking-wide">AI</p>
+              </div>
+
               <div className="space-y-2">
-                {entries.map((entry) => {
-                  const d = new Date(entry.date + 'T00:00:00')
+                {rows.map((row) => {
+                  const d = new Date(row.entry.date + 'T00:00:00')
                   const label = d.toLocaleDateString('en-GB', {
                     weekday: 'short',
                     day: 'numeric',
@@ -90,11 +243,49 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
                     year: 'numeric',
                   })
                   return (
-                    <div key={entry.id} className="bg-cream rounded-xl px-3 py-2.5">
-                      <p className="text-xs font-semibold text-forest">{label}</p>
-                      {entry.text ? (
-                        <p className="text-xs text-muted mt-0.5 line-clamp-1">{entry.text}</p>
-                      ) : null}
+                    <div key={row.entry.id} className="bg-cream rounded-xl px-3 py-2.5 flex items-center gap-2" data-date={row.entry.date}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-forest">{label}</p>
+                        {row.entry.text ? (
+                          <p className="text-xs text-muted mt-0.5 line-clamp-1">{row.entry.text}</p>
+                        ) : null}
+                      </div>
+
+                      {/* Weather state */}
+                      <div className="w-16 flex justify-center">
+                        <span
+                          className={`text-xs font-mono ${row.weatherStatus === 'synced' ? 'text-forest' : row.weatherStatus === 'failed' ? 'text-red-500' : 'text-muted'}`}
+                          data-testid={`weather-status-${row.entry.id}`}
+                          aria-label={`weather: ${row.weatherStatus}`}
+                        >
+                          {WEATHER_LABEL[row.weatherStatus]}
+                        </span>
+                      </div>
+
+                      {/* AI state (only for text entries) */}
+                      <div className="w-12 flex justify-center">
+                        {row.aiStatus !== null ? (
+                          row.hasPendingExtraction ? (
+                            <Link
+                              href={`/journal/sync/${row.entry.id}/`}
+                              className="text-xs text-forest font-medium"
+                              data-testid={`review-link-${row.entry.id}`}
+                            >
+                              Review →
+                            </Link>
+                          ) : (
+                            <span
+                              className={`text-xs font-mono ${row.aiStatus === 'review-pending' ? 'text-forest' : row.aiStatus === 'failed' ? 'text-red-500' : 'text-muted'}`}
+                              data-testid={`ai-status-${row.entry.id}`}
+                              aria-label={`AI: ${row.aiStatus}`}
+                            >
+                              {AI_LABEL[row.aiStatus]}
+                            </span>
+                          )
+                        ) : (
+                          <span className="w-12" aria-hidden />
+                        )}
+                      </div>
                     </div>
                   )
                 })}
@@ -102,26 +293,28 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
             </div>
 
             <div className="px-4 pb-8 pt-3 border-t border-bone">
-              {result && (
-                <p className="text-xs text-muted mb-3 text-center">{result}</p>
+              {/* Post-run summary */}
+              {summary && (
+                <div className="mb-3 text-xs text-muted space-y-0.5" data-testid="sync-summary">
+                  <p>
+                    {summary.weatherSynced === 0 && summary.weatherFailed === 0
+                      ? 'Weather: no updates needed'
+                      : `Weather: ${summary.weatherSynced} synced${summary.weatherFailed > 0 ? `, ${summary.weatherFailed} failed` : ''}`}
+                  </p>
+                  <p>
+                    AI: {summary.aiQueued} queued, {summary.aiFailed} failed, {summary.aiSkipped} skipped
+                  </p>
+                </div>
               )}
-              {!hasLocation ? (
-                <p className="text-sm text-center text-muted">
-                  Set your location in{' '}
-                  <Link href="/settings" onClick={onClose} className="text-forest underline">
-                    Settings
-                  </Link>{' '}
-                  to sync weather.
-                </p>
-              ) : (
-                <button
-                  onClick={handleSync}
-                  disabled={syncing}
-                  className="w-full py-3.5 rounded-xl bg-forest text-cream font-medium text-sm active:opacity-80 disabled:opacity-50 transition-opacity"
-                >
-                  {syncing ? 'Syncing weather…' : 'Sync now'}
-                </button>
-              )}
+
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="w-full py-3.5 rounded-xl bg-forest text-cream font-medium text-sm active:opacity-80 disabled:opacity-50 transition-opacity"
+                data-testid="sync-button"
+              >
+                {syncing ? 'Syncing…' : 'Sync Now'}
+              </button>
             </div>
           </>
         )}

@@ -151,13 +151,22 @@ None — all decisions resolved before approval; see §11.
 
 ## 9. Progress
 
-None.
+All acceptance criteria implemented and tests passing (2026-10-20):
+- AC-6 through AC-11, AC-18, AC-20: unit tests in `lib/__tests__/db.test.ts` — pass (79/79)
+- AC-1 through AC-5, AC-7, AC-19: unit tests in `lib/__tests__/sync.test.ts` — pass (79/79)
+- AC-12 through AC-16: e2e tests in `e2e/sync.spec.ts` — pass in Chromium (48/48 + 1 skip SW); WebKit AC-15 tests intentionally skipped per Q-2 decision
+- Done checklist: lint (53 pre-existing errors, 0 new), typecheck clean, all tests pass, build passes
+- Manual check (schema): **Wipe the database before running any manual tests on this branch.** Any PR that adds a store, index, or field to the `upgrade()` handler requires a wipe because there is no migration path (D-034, D-081). Use Settings → Wipe Database, then re-create test entries.
 
 ---
 
 ## 10. Surprises & discoveries
 
-None.
+- The `useDb` utility generates ESLint false-positive `react-hooks/rules-of-hooks` errors for every call in `lib/db.ts`. These are pre-existing; we added 3 new functions, each generating one more false-positive. Total remains 53 errors before and after.
+- WebKit AC-15 tests (slow-fetch guard) are scoped to Chromium only per Q-2.
+- The `navigation.spec.ts:tab bar navigates between tabs` test times out in WebKit — confirmed pre-existing on `main` (not introduced by this PR).
+- **Silent "All entries are synced" when DB schema is stale.** `SyncSheet.load()` originally used a bare `try/finally` with no `catch`. When a store added in a later migration (e.g. `pendingExtractions`, added in PR #17 without bumping the DB version) is absent from an older device's IndexedDB, `getPendingExtractionByEntryId` throws a `DOMException`. The bare `finally` swallowed this, left `rows = []`, and rendered "All entries are synced" instead of an error. Fixed: added a `catch` block that sets `loadError = true`, rendering an explicit "schema may be out of date — wipe in Settings" message. Root trigger is the no-migration-path policy (D-034, D-081): any schema change requires a DB wipe on test devices.
+- **Re-sync reset "✓" to "–" for already-synced entries.** On a second Sync Now press, entries whose weather had already been synced flipped from "✓" to "–". Root cause: the reset step in `handleSync` correctly preserved `weatherStatus = 'synced'` (comment: "keep 'synced' weather in place — gate in sync.ts skips re-fetch"), but the `onProgress` callback unconditionally overwrote it with `'skipped'` when the orchestrator skipped those same entries on the second run. Fixed: guard in `onProgress` — don't let `'skipped'` overwrite `'synced'` for the weather column (commit c807656). The post-run summary is unaffected (reads from the raw log array, not row state).
 
 ---
 
@@ -171,4 +180,24 @@ None.
 
 ## 12. Outcomes & retrospective
 
-Not yet filled in.
+**Delivered (2026-10-22):**
+- `lib/sync.ts`: `runSync` orchestrator with per-entry weather and AI steps, in-flight guard, and `onProgress` callback. AI step calls `StubAIProvider` which throws; error caught and reported as a failure (D-3).
+- `lib/db.ts`: `writeEntryWeather`, `applyNeedsSyncRule`, `getPendingExtractionByEntryId`, and `extractionReviewedAt` field on `JournalEntry`. All ACs passing (79/79 unit, 48/48 + 1 skip e2e in Chromium).
+- `SyncSheet`: per-row weather and AI state columns, missing-config banner, post-run summary, in-flight guard, oldest-first ordering.
+- `docs/exec-plans/TEMPLATE.md`: DB-wipe reminder added to §6 and §4 instruction.
+
+**Differed from plan:**
+- Three UI behaviour fixes not in original scope, all caught post-implementation:
+  1. Initial row states always reset to 'pending' on mount, ignoring existing IDB state — caught in review (commit bce8de1).
+  2. Silent "All entries are synced" on stale DB schema — bare `try/finally` swallowed a `DOMException` — caught in manual testing (commit 63ae37f).
+  3. Re-sync reset weather "✓" to "–" — `onProgress` overwrote `'synced'` with `'skipped'` — caught in manual testing (commit c807656).
+- Template placement fix: DB-wipe item initially placed in §9 (wrong section), corrected to §4 instruction in §6 after reviewer feedback (commit e88ae76).
+
+**Retrospective — process gaps to address:**
+- Bugs 2 and 3 were not caught by ACs or automated tests; both required manual testing. Both describe observable behaviour that could have been specified upfront:
+  - An AC for "reopening the sheet after a sync shows correct persisted state" would have caught bug 1 and 2 at the unit/e2e level.
+  - An AC for "pressing Sync Now a second time preserves already-synced weather '✓'" would have caught bug 3.
+  Future phases with stateful UI components should add ACs for re-open and re-run behaviour explicitly.
+- The bare `try/finally`-with-no-`catch` pattern in async DB code silently converts any error into a misleading empty state. Worth flagging as a named anti-pattern in review (candidate for ARCHITECTURE §9 or AGENTS.md).
+
+**Follow-up:** None. DB-wipe reminder and template fix are complete in this PR.
