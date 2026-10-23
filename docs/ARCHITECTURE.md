@@ -194,7 +194,7 @@ These must not be violated. Coding agents should check this list before writing 
 ### Storage
 
 5. All writes go to IndexedDB first. Save paths make no network calls.
-6. No migration code. The `upgradeneeded` handler creates all stores from scratch, with no version checks.
+6. No migration code. The `upgradeneeded` handler creates all stores from scratch, with no version checks. A startup `isSchemaValid` check detects when the local DB is missing a store or index; it is not a migration (D-101). If it fails, the app blocks on a wipe prompt before any data is read.
 7. A date edit updates the entry, all its photos' `entryDate`, and all its `GeneralNote` dates in one `readwrite` transaction spanning the stores (§3).
 8. `needsSync` is `1` or absent, never `0` or `false` (§3).
 9. Photos are stored as `ArrayBuffer`; the store never contains a `Blob` (§3).

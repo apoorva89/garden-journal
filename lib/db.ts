@@ -1,4 +1,4 @@
-import { openDB } from 'idb'
+import { openDB, unwrap } from 'idb'
 import type { IDBPDatabase, DBSchema } from 'idb'
 import { nanoid } from 'nanoid'
 import type { ExtractedEvent } from './ai/extractionSpec'
@@ -197,6 +197,76 @@ interface GardenDBSchema extends DBSchema {
 
 export type GardenDB = IDBPDatabase<GardenDBSchema>
 
+// ── Schema definition ─────────────────────────────────────────────────────────
+// Single source of truth for stores and indexes. upgrade() loops over this,
+// and isSchemaValid() checks against it — adding a store is one edit.
+
+interface IndexSpec { keyPath: string; options?: IDBIndexParameters }
+interface StoreSpec { options?: IDBObjectStoreParameters; indexes?: Record<string, IndexSpec> }
+
+export const SCHEMA: Record<string, StoreSpec> = {
+  cropTypes: { options: { keyPath: 'id' } },
+  cropInstances: {
+    options: { keyPath: 'id' },
+    indexes: { 'by-cropTypeId': { keyPath: 'cropTypeId' } },
+  },
+  journalEntries: {
+    options: { keyPath: 'id' },
+    indexes: {
+      'by-yearMonth': { keyPath: 'yearMonth' },
+      'by-needsSync': { keyPath: 'needsSync' },
+    },
+  },
+  entryPhotos: {
+    options: { keyPath: 'id' },
+    indexes: {
+      'by-entryId': { keyPath: 'entryId' },
+      'by-cropTypeId': { keyPath: 'cropTypeIds', options: { multiEntry: true } },
+    },
+  },
+  cropEvents: {
+    options: { keyPath: 'id' },
+    indexes: {
+      'by-cropInstanceId': { keyPath: 'cropInstanceId' },
+      'by-type': { keyPath: 'type' },
+    },
+  },
+  careTasks: {
+    options: { keyPath: 'id' },
+    indexes: { 'by-cropInstanceId': { keyPath: 'cropInstanceId' } },
+  },
+  settings: {},
+  apiUsageLogs: {
+    options: { keyPath: 'id' },
+    indexes: { 'by-entryId': { keyPath: 'entryId' } },
+  },
+  pendingExtractions: { options: { keyPath: 'entryId' } },
+  generalNotes: {
+    options: { keyPath: 'id' },
+    indexes: { 'by-entryId': { keyPath: 'entryId' } },
+  },
+}
+
+export function isSchemaValid(database: GardenDB): boolean {
+  try {
+    const raw = unwrap(database)
+    for (const [storeName, spec] of Object.entries(SCHEMA)) {
+      if (!raw.objectStoreNames.contains(storeName)) return false
+      const indexNames = Object.keys(spec.indexes ?? {})
+      if (indexNames.length > 0) {
+        const tx = raw.transaction(storeName)
+        const store = tx.objectStore(storeName)
+        for (const name of indexNames) {
+          if (!store.indexNames.contains(name)) return false
+        }
+      }
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
 // ── Open / Singleton ──────────────────────────────────────────────────────────
 
 export async function openGardenDB(idbFactory?: IDBFactory): Promise<GardenDB> {
@@ -208,35 +278,12 @@ export async function openGardenDB(idbFactory?: IDBFactory): Promise<GardenDB> {
 
   return openDB<GardenDBSchema>('garden-journal', 1, {
     upgrade(database) {
-      database.createObjectStore('cropTypes', { keyPath: 'id' })
-
-      const instances = database.createObjectStore('cropInstances', { keyPath: 'id' })
-      instances.createIndex('by-cropTypeId', 'cropTypeId')
-
-      const entries = database.createObjectStore('journalEntries', { keyPath: 'id' })
-      entries.createIndex('by-yearMonth', 'yearMonth')
-      entries.createIndex('by-needsSync', 'needsSync')
-
-      const photos = database.createObjectStore('entryPhotos', { keyPath: 'id' })
-      photos.createIndex('by-entryId', 'entryId')
-      photos.createIndex('by-cropTypeId', 'cropTypeIds', { multiEntry: true })
-
-      const events = database.createObjectStore('cropEvents', { keyPath: 'id' })
-      events.createIndex('by-cropInstanceId', 'cropInstanceId')
-      events.createIndex('by-type', 'type')
-
-      const tasks = database.createObjectStore('careTasks', { keyPath: 'id' })
-      tasks.createIndex('by-cropInstanceId', 'cropInstanceId')
-
-      database.createObjectStore('settings')
-
-      const apiLogs = database.createObjectStore('apiUsageLogs', { keyPath: 'id' })
-      apiLogs.createIndex('by-entryId', 'entryId')
-
-      database.createObjectStore('pendingExtractions', { keyPath: 'entryId' })
-
-      const generalNotes = database.createObjectStore('generalNotes', { keyPath: 'id' })
-      generalNotes.createIndex('by-entryId', 'entryId')
+      for (const [storeName, spec] of Object.entries(SCHEMA)) {
+        const store = (database as IDBPDatabase<any>).createObjectStore(storeName, spec.options)
+        for (const [indexName, { keyPath, options }] of Object.entries(spec.indexes ?? {})) {
+          store.createIndex(indexName, keyPath, options)
+        }
+      }
     },
   })
 }

@@ -45,26 +45,27 @@ Phases that are Done are listed first. Order numbers apply to phases not yet bui
 | — | 8c | Sync & Verify weather sync | 8b | Done |
 | 1 | 8d-1 | Sync orchestrator and SyncSheet | 8c | Next |
 | 2 | 8d-2 | Extraction request builder | 8b | Not started |
-| 3 | 8d-3 | Live extraction call | 8d-2 | Not started |
-| 4 | 8d-4 | Extracted event resolution | 8b, 8d-2 | Not started |
-| 5 | 8d-5 | Extraction wiring and read-only cards | 8d-1, 8d-3, 8d-4 | Not started |
-| 6 | 8e-1 | Review outcomes and event photos schema | 8b | Not started |
-| 7 | 8e-2 | Card states and Done gate | 8d-5 | Not started |
-| 8 | 8e-3 | Instance resolution | 8e-2 | Not started |
-| 9 | 8e-4 | Edit Event screen and Add missed event | 8e-2 | Not started |
-| 10 | 8e-5 | Commit on Done | 8e-1, 8e-3, 8e-4 | Not started |
-| 11 | 8e-6 | Photo tags and auto-attach | 8e-1, 8e-5 | Not started |
-| 12 | 8f-1 | Manual Retry | 8d-5 | Not started |
-| 13 | 10 | Next Season tab | 8e-5 | Not started |
-| 14 | Eval set | AI evaluation set | 8d-3, 8e-5 | Needs design |
-| 15 | 13 | Photo-only entries | 3, 4 | Not started |
-| 16 | 12a | Entry edit rules and weather refresh | 3, 4, 8c, 8e-1 | Not started |
-| 17 | 12b | Committed event dates | 12a, 8e-1, 8e-5 | Not started |
-| 18 | 8f-2 | Re-run extraction | 8e-5 | Not started |
-| 19 | 8f-3 | Staleness check | 8f-2, 12a | Not started |
-| 20 | 9a | Crop Timeline: Timeline tab | 8e-5 | Not started |
-| 21 | 9b | Crop Timeline: Issues tab | 9a | Not started |
-| 22 | 11 | Care tab | 9a | Deferred |
+| 3 | schema-guard | Runtime startup schema check | — | Not started |
+| 4 | 8d-3 | Live extraction call | 8d-2 | Not started |
+| 5 | 8d-4 | Extracted event resolution | 8b, 8d-2 | Not started |
+| 6 | 8d-5 | Extraction wiring and read-only cards | 8d-1, 8d-3, 8d-4 | Not started |
+| 7 | 8e-1 | Review outcomes and event photos schema | 8b | Not started |
+| 8 | 8e-2 | Card states and Done gate | 8d-5 | Not started |
+| 9 | 8e-3 | Instance resolution | 8e-2 | Not started |
+| 10 | 8e-4 | Edit Event screen and Add missed event | 8e-2 | Not started |
+| 11 | 8e-5 | Commit on Done | 8e-1, 8e-3, 8e-4 | Not started |
+| 12 | 8e-6 | Photo tags and auto-attach | 8e-1, 8e-5 | Not started |
+| 13 | 8f-1 | Manual Retry | 8d-5 | Not started |
+| 14 | 10 | Next Season tab | 8e-5 | Not started |
+| 15 | Eval set | AI evaluation set | 8d-3, 8e-5 | Needs design |
+| 16 | 13 | Photo-only entries | 3, 4 | Not started |
+| 17 | 12a | Entry edit rules and weather refresh | 3, 4, 8c, 8e-1 | Not started |
+| 18 | 12b | Committed event dates | 12a, 8e-1, 8e-5 | Not started |
+| 19 | 8f-2 | Re-run extraction | 8e-5 | Not started |
+| 20 | 8f-3 | Staleness check | 8f-2, 12a | Not started |
+| 21 | 9a | Crop Timeline: Timeline tab | 8e-5 | Not started |
+| 22 | 9b | Crop Timeline: Issues tab | 9a | Not started |
+| 23 | 11 | Care tab | 9a | Deferred |
 
 ---
 
