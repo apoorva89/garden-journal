@@ -14,7 +14,7 @@ interface SeedSettings {
 interface SeedEntry {
   id: string
   date: string
-  text?: string
+  text?: string | null
 }
 
 async function seedDb(
@@ -38,7 +38,7 @@ async function seedDb(
               id: e.id,
               date: e.date,
               yearMonth: e.date.slice(0, 7),
-              text: e.text ?? '',
+              text: e.text !== undefined ? e.text : '',
               nextSeasonNote: '',
               weatherC: null,
               weatherIcon: null,
@@ -164,6 +164,53 @@ test.describe('SyncSheet banner: shows nothing when both configured', () => {
     await page.reload()
     await page.getByRole('button', { name: /Sync/ }).click()
     await expect(page.getByTestId('missing-config-banner')).not.toBeVisible()
+  })
+})
+
+// ── D-101: AI banner visibility gated on text entries ────────────────────────
+// Both tests use identical settings (location set, AI not configured) so the
+// contrast is purely due to whether any entry has text.
+
+const AI_MISSING_SETTINGS = { latitude: 47.6062, longitude: -122.3321 }
+
+test.describe('SyncSheet banner: AI missing — visible only when at least one entry has text (D-101)', () => {
+  test('shows AI-missing banner when at least one entry has text', async ({ page }) => {
+    await page.route('**/archive-api.open-meteo.com/**', (route) => route.fulfill({ json: WEATHER_MOCK }))
+    await page.goto(`${BASE}/journal/`)
+    await seedDb(
+      page,
+      [
+        { id: 'e-text', date: '2026-06-01', text: 'Planted tomatoes' },
+        { id: 'e-null', date: '2026-06-02', text: null },
+      ],
+      AI_MISSING_SETTINGS,
+    )
+    await page.reload()
+    await page.getByRole('button', { name: /Sync/ }).click()
+    await expect(page.getByTestId('missing-config-banner')).toContainText('AI not configured')
+    await expect(page.getByTestId('ai-status-e-text')).toBeVisible()
+    await expect(page.getByTestId('ai-status-e-text')).toHaveAttribute('aria-label', 'AI: pending')
+  })
+
+  test('hides AI-missing banner when all entries have no text (legacy text: null)', async ({ page }) => {
+    await page.route('**/archive-api.open-meteo.com/**', (route) => route.fulfill({ json: WEATHER_MOCK }))
+    await page.goto(`${BASE}/journal/`)
+    await seedDb(
+      page,
+      [
+        { id: 'e-null1', date: '2026-06-01', text: null },
+        { id: 'e-null2', date: '2026-06-02', text: null },
+      ],
+      AI_MISSING_SETTINGS,
+    )
+    await page.reload()
+    await page.getByRole('button', { name: /Sync/ }).click()
+    await expect(page.getByTestId('missing-config-banner')).toHaveCount(0)
+    await expect(page.locator('[data-date="2026-06-01"]')).toBeVisible()
+    await expect(page.locator('[data-date="2026-06-02"]')).toBeVisible()
+    await expect(page.getByTestId('weather-status-e-null1')).toHaveAttribute('aria-label', 'weather: pending')
+    await expect(page.getByTestId('weather-status-e-null2')).toHaveAttribute('aria-label', 'weather: pending')
+    await expect(page.locator('[data-testid^="ai-status-"]')).toHaveCount(0)
   })
 })
 

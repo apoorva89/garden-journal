@@ -931,6 +931,17 @@ Entries written before this log existed have no dates. New entries include a **D
 **Alternatives:** Option (b): hides the real code path and makes phase 8d-5 a structural change, not a provider swap.
 **Consequences:** In phase 8d-1 all AI steps report `'failed'`. The orchestrator does not change when the real provider is wired in.
 
+### D-101 — AI-missing banner suppressed when all pending entries have no text
+**Type:** Product
+**Status:** Current
+**Date:** 2026-10-22
+**Phase:** 8d-1
+**Context:** AC-12 specified showing a banner naming whichever of location and AI config is absent. During implementation of per-row sync status (commit 7d13b0f), a condition was added so the AI half of the banner is shown only when at least one pending entry has text. On-device IDB entries from phases before text was required can have `text: null`, causing `.trim()` to throw; commit c7aab0b added optional-chaining to guard this. Taken together, the AI banner is suppressed when all pending entries have no text (including legacy `text: null` rows).
+**Decision:** The AI-missing banner is shown only when `rows.some(row => row.aiStatus !== null)` — i.e., at least one pending entry has non-empty text. When all entries have no text, showing an AI configuration warning is irrelevant.
+**Rationale:** Commit 7d13b0f states: "AI configuration is irrelevant when all pending entries have no text." Commit c7aab0b documents that legacy `text: null` entries exist on-device. Neither commit records a user-reported bug that triggered the change.
+**Alternatives:** Not recorded.
+**Consequences:** The location-missing banner is unaffected. The existing AC-12 tests seed at least one text entry, so they continue to pass. The no-text case was not covered by a test before this entry was written.
+
 ---
 
 ## Infrastructure & testing
