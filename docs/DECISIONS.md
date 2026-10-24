@@ -1036,3 +1036,13 @@ The patterns appear mismatched to the app's URL structure at first glance: all p
 
 **Alternatives:** Not recorded.
 **Consequences:** Navigation to all app pages works offline. The exact mechanism depends on this specific regex/base-path interaction; any edit must be verified on-device before merging.
+
+### D-101 — Runtime schema check for stale local databases
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-22
+**Phase:** schema-guard
+**Context:** The app wipes the database instead of migrating it (D-034). When a phase adds a new store, a tester on an old local DB hits runtime errors with no indication that a wipe is needed.
+**Decision:** On startup, before any data is read, check that the local DB contains the stores and indexes the code expects. If it does not, show a blocking screen asking the user to wipe the database. The check never migrates or automatically wipes; the user must confirm.
+**Alternatives:** Incrementing the DB version to trigger a migration (D-034 rejects migrations). A non-blocking warning banner (easily missed).
+**Consequences:** A tester on a stale DB sees the blocking screen immediately. Legacy data shapes — a field holding an unexpected value — are not detectable by this check.

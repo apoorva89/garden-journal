@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import ServiceWorkerRegistration from './sw-register'
+import SchemaGuard from './schema-guard'
 import { BASE_PATH } from '../base-path.mjs'
 
 export const metadata: Metadata = {
@@ -27,7 +28,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ServiceWorkerRegistration />
-        {children}
+        <SchemaGuard>
+          {children}
+        </SchemaGuard>
       </body>
     </html>
   )

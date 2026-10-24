@@ -11,9 +11,14 @@ export default function DevPage() {
   }
 
   return (
-    <div style={{ padding: '2rem' }}>
+    <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '320px' }}>
       <h1>Dev Tools</h1>
-      <button onClick={handleWipe}>Wipe local database</button>
+      <button
+        onClick={handleWipe}
+        style={{ padding: '0.75rem 1rem', border: '1px solid #999', borderRadius: '6px', background: '#eee', cursor: 'pointer', fontSize: '1rem' }}
+      >
+        Wipe local database
+      </button>
     </div>
   )
 }
