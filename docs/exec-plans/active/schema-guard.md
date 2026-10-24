@@ -45,9 +45,9 @@ No e2e test per the issue spec.
 ## 5. Progress log
 
 - [x] Doc changes (DECISIONS.md, ARCHITECTURE.md, BUILD_PLAN.md)
-- [ ] Unit tests (fail first)
-- [ ] SCHEMA + upgrade() refactor
-- [ ] isSchemaValid
-- [ ] SchemaGuard component
-- [ ] app/layout.tsx wiring
-- [ ] Tests pass, lint, typecheck, build
+- [x] Unit tests (fail first)
+- [x] SCHEMA + upgrade() refactor
+- [x] isSchemaValid
+- [x] SchemaGuard component
+- [x] app/layout.tsx wiring
+- [x] Tests pass, lint, typecheck, build

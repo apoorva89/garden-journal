@@ -45,7 +45,7 @@ Phases that are Done are listed first. Order numbers apply to phases not yet bui
 | — | 8c | Sync & Verify weather sync | 8b | Done |
 | 1 | 8d-1 | Sync orchestrator and SyncSheet | 8c | Next |
 | 2 | 8d-2 | Extraction request builder | 8b | Not started |
-| 3 | schema-guard | Runtime startup schema check | — | Not started |
+| 3 | schema-guard | Runtime startup schema check | — | Done |
 | 4 | 8d-3 | Live extraction call | 8d-2 | Not started |
 | 5 | 8d-4 | Extracted event resolution | 8b, 8d-2 | Not started |
 | 6 | 8d-5 | Extraction wiring and read-only cards | 8d-1, 8d-3, 8d-4 | Not started |

@@ -6,6 +6,7 @@ import { db as dbPromise, isSchemaValid } from '@/lib/db'
 export default function SchemaGuard({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<'checking' | 'valid' | 'invalid'>('checking')
   const [wipeBlocked, setWipeBlocked] = useState(false)
+  const [wiping, setWiping] = useState(false)
 
   useEffect(() => {
     dbPromise
@@ -15,6 +16,7 @@ export default function SchemaGuard({ children }: { children: React.ReactNode })
 
   async function handleWipe() {
     setWipeBlocked(false)
+    setWiping(true)
     const conn = await dbPromise.catch(() => null)
     conn?.close()
     await new Promise<void>((resolve) => {
@@ -26,7 +28,7 @@ export default function SchemaGuard({ children }: { children: React.ReactNode })
     window.location.reload()
   }
 
-  if (status === 'checking') return null
+  if (status === 'checking') return <div className="fixed inset-0 bg-cream" />
 
   if (status === 'invalid') {
     return (
@@ -38,9 +40,10 @@ export default function SchemaGuard({ children }: { children: React.ReactNode })
         )}
         <button
           onClick={handleWipe}
-          className="mt-2 px-6 py-3 bg-terra text-surface rounded-lg font-medium active:opacity-80"
+          disabled={wiping}
+          className="mt-2 px-6 py-3 bg-terra text-surface rounded-lg font-medium active:opacity-80 disabled:opacity-50"
         >
-          Wipe local data
+          {wiping ? 'Wiping…' : 'Wipe local data'}
         </button>
       </div>
     )
