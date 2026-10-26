@@ -441,3 +441,109 @@ test.describe('SyncSheet: Journal tab shows weather after sync', () => {
     await expect(page.getByText('18°')).toBeVisible()
   })
 })
+
+// ── TC-1: Reopen rebuilds rows from stored data (issue #49) ───────────────────
+
+test.describe('SyncSheet reopen: persisted weather and AI state (issue #49 TC-1)', () => {
+  test('weather shows synced and AI shows skipped on reopen after run with no AI config', async ({ page }) => {
+    await page.route('**/archive-api.open-meteo.com/**', (route) => route.fulfill({ json: WEATHER_MOCK }))
+    await page.goto(`${BASE}/journal/`)
+    await seedDb(
+      page,
+      [
+        { id: 'e-text', date: '2026-06-01', text: 'Planted tomatoes' },
+        { id: 'e-no-text', date: '2026-06-02', text: null },
+      ],
+      { latitude: 47.6062, longitude: -122.3321 },  // no AI key
+    )
+    await page.reload()
+
+    // Run full sync
+    await page.getByRole('button', { name: /Sync/ }).click()
+    await page.getByTestId('sync-button').click()
+    await expect(page.getByTestId('sync-summary')).toBeVisible({ timeout: 10000 })
+
+    // Close and reopen
+    await page.getByRole('button', { name: 'Done' }).click()
+    await page.getByRole('button', { name: /Sync/ }).click()
+
+    // e-text: weather was synced, AI was skipped (no AI config)
+    await expect(page.getByTestId('weather-status-e-text')).toHaveText('✓')
+    await expect(page.getByTestId('weather-status-e-text')).toHaveAttribute('aria-label', 'weather: synced')
+    await expect(page.getByTestId('ai-status-e-text')).toHaveText('–')
+    await expect(page.getByTestId('ai-status-e-text')).toHaveAttribute('aria-label', 'AI: skipped')
+
+    // e-no-text: entry was cleared from the unsynced list (applyNeedsSyncRule clears needsSync
+    // when weatherC is set and there is no text), so it does not appear on reopen at all
+    await expect(page.getByTestId('ai-status-e-no-text')).not.toBeVisible()
+  })
+
+  test('review-link is visible on reopen when PendingExtraction exists', async ({ page }) => {
+    await page.route('**/archive-api.open-meteo.com/**', (route) => route.fulfill({ json: WEATHER_MOCK }))
+    await page.goto(`${BASE}/journal/`)
+    await seedDb(
+      page,
+      [{ id: 'e-with-extraction', date: '2026-06-01', text: 'Has extraction' }],
+      {
+        latitude: 47.6062,
+        longitude: -122.3321,
+        aiProvider: 'anthropic',
+        aiModel: 'claude-sonnet-4-6',
+        apiKey: 'sk-ant-test',
+      },
+    )
+    await seedPendingExtraction(page, 'e-with-extraction')
+    await page.reload()
+
+    // Run full sync
+    await page.getByRole('button', { name: /Sync/ }).click()
+    await page.getByTestId('sync-button').click()
+    await expect(page.getByTestId('sync-summary')).toBeVisible({ timeout: 10000 })
+
+    // Close and reopen
+    await page.getByRole('button', { name: 'Done' }).click()
+    await page.getByRole('button', { name: /Sync/ }).click()
+
+    // PendingExtraction persists across close/reopen — review-link should be shown
+    await expect(page.getByTestId('review-link-e-with-extraction')).toBeVisible()
+    await expect(page.getByTestId('review-link-e-with-extraction')).toContainText('Review')
+  })
+})
+
+// ── TC-2: Re-run: synced weather stays synced; no second weather request (issue #49) ─
+
+test.describe('SyncSheet re-run: synced weather stays synced (issue #49 TC-2)', () => {
+  test('second Sync Now leaves weather-status as ✓ and makes zero new weather requests', async ({ page }) => {
+    let weatherCallCount = 0
+    await page.route('**/archive-api.open-meteo.com/**', (route) => {
+      weatherCallCount++
+      return route.fulfill({ json: WEATHER_MOCK })
+    })
+
+    await page.goto(`${BASE}/journal/`)
+    // Use a text entry so needsSync is NOT cleared after weather sync (stays in the unsynced
+    // list for the second run, exercising the onProgress 'skipped' guard in handleSync)
+    await seedDb(
+      page,
+      [{ id: 'e1', date: '2026-06-01', text: 'Entry that keeps needsSync after weather sync' }],
+      { latitude: 47.6062, longitude: -122.3321 },
+    )
+    await page.reload()
+    await page.getByRole('button', { name: /Sync/ }).click()
+
+    // First sync: weather is fetched once
+    await page.getByTestId('sync-button').click()
+    await expect(page.getByTestId('sync-summary')).toContainText('Weather: 1 synced', { timeout: 10000 })
+    expect(weatherCallCount).toBe(1)
+
+    // Second sync: no close/reopen — press Sync Now again
+    await page.getByTestId('sync-button').click()
+    await expect(page.getByTestId('sync-summary')).toContainText('Weather: no updates needed', { timeout: 10000 })
+
+    // Regression guard: synced weather must not flip to '–'
+    await expect(page.getByTestId('weather-status-e1')).toHaveText('✓')
+
+    // The orchestrator skips already-synced entries — no second weather request should be made
+    expect(weatherCallCount).toBe(1)
+  })
+})
