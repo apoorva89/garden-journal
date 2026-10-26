@@ -36,7 +36,8 @@ This file is a map. Read the documents it points to before changing code.
    - If the same test or the same error fails three times, stop. Do not attempt a fourth fix. Report: what you tried, the exact error, and your best assessment of the cause.
 5. Run the done checklist, commit, and open a PR.
 6. Review. Start a fresh session to review the PR (see Review). Do not review your own work in the implementing session.
-7. Report: what changed, what didn't, what you're unsure of, and any deviation from the plan.
+7. When addressing review comments, for a reported error or issue, write a failing test on a clean DB and show the output. If you can’t make one fail, stop, change no source, and report what you tried and what to check on-device.
+8. Report: what changed, what didn't, what you're unsure of, and any deviation from the plan.
 
 ## Definition of done
 
