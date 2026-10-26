@@ -56,7 +56,7 @@ If the phase requires changing an invariant in ARCHITECTURE §9, stop and ask be
 ## 6. Dependencies and stop-and-ask triggers
 
 - New packages: none / list [STOP-ASK]
-- lib/db.ts schema or store changes: none / describe [STOP-ASK]. If a store, index, or field is added to `upgrade()`, note it here and add a manual AC to §4 requiring a DB wipe on test devices before testing — there is no migration path (D-034, D-081).
+- lib/db.ts schema or store changes: none / describe [STOP-ASK]. If it adds or removes a store or index, or changes what any stored field can hold (type, nullability, allowed values, shape) then exec plan names the affected stores and fields, and add a manual AC to §4 requiring a DB wipe on test devices before testing — there is no migration path (D-034, D-081). 
 - Service worker, manifest, or base path changes: none / describe [STOP-ASK]
 - AI provider behaviour or extraction spec changes: none / describe [STOP-ASK]
 - Build plan edits: none / describe [STOP-ASK]
