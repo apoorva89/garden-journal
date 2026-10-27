@@ -1,8 +1,6 @@
 name: Generate Linux lockfile
 
 on:
-  push:
-    branches: ['fix/ci-lockfile']
   workflow_dispatch:
 
 jobs:
