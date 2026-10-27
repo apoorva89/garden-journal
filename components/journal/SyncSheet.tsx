@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { flushSync } from 'react-dom'
 import Link from 'next/link'
 import { getUnsyncedEntries, getSettings, getPendingExtractionByEntryId } from '@/lib/db'
 import type { JournalEntry, Settings } from '@/lib/db'
@@ -117,20 +116,17 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
     await runSync({
       onProgress(entryId, step, status) {
         log.push([entryId, step, status])
-        // flushSync forces a synchronous render per step so status is visible in real-time
-        flushSync(() => {
-          setRows((prev) =>
-            prev.map((row) => {
-              if (row.entry.id !== entryId) return row
-              if (step === 'weather') {
-                // Don't overwrite 'synced' with 'skipped' — consistent with the reset above
-                if (status === 'skipped' && row.weatherStatus === 'synced') return row
-                return { ...row, weatherStatus: status as WeatherStatus }
-              }
-              return { ...row, aiStatus: status as AIStatus }
-            }),
-          )
-        })
+        setRows((prev) =>
+          prev.map((row) => {
+            if (row.entry.id !== entryId) return row
+            if (step === 'weather') {
+              // Don't overwrite 'synced' with 'skipped' — consistent with the reset above
+              if (status === 'skipped' && row.weatherStatus === 'synced') return row
+              return { ...row, weatherStatus: status as WeatherStatus }
+            }
+            return { ...row, aiStatus: status as AIStatus }
+          }),
+        )
       },
     })
 
