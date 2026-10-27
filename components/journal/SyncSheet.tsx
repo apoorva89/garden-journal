@@ -69,6 +69,10 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
         const [entries, s] = await Promise.all([getUnsyncedEntries(), getSettings()])
         // oldest-first
         const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date))
+        const aiKeyForLoad = s?.aiProvider
+          ? s.apiKeys[s.aiProvider as keyof typeof s.apiKeys]
+          : undefined
+        const hasAIConfigForLoad = !!(s?.aiProvider && s?.aiModel && aiKeyForLoad)
         const initial: RowState[] = await Promise.all(
           sorted.map(async (entry) => {
             const pending = await getPendingExtractionByEntryId(entry.id)
@@ -76,7 +80,9 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
               entry,
               weatherStatus: (entry.weatherC != null ? 'synced' : 'pending') as WeatherStatus,
               aiStatus: (entry.text?.trim()
-                ? pending ? 'review-pending' : 'pending'
+                ? pending
+                  ? 'review-pending'
+                  : (entry.weatherC != null && !hasAIConfigForLoad ? 'skipped' : 'pending')
                 : null) as AIStatus | null,
               hasPendingExtraction: !!pending,
             }
