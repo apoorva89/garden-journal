@@ -510,6 +510,46 @@ test.describe('SyncSheet reopen: persisted weather and AI state (issue #49 TC-1)
   })
 })
 
+// ── Issue #51: flushSync oracle — per-step intermediate state ─────────────────
+
+test.describe('SyncSheet: per-step intermediate state is visible during sync (issue #51)', () => {
+  test('weather-status updates per entry, not all at once when runSync resolves', async ({ page, browserName }) => {
+    test.skip(browserName === 'webkit', 'Q-2: WebKit timing may be flaky for slow-fetch scenarios')
+
+    let requestCount = 0
+    await page.route('**/archive-api.open-meteo.com/**', async (route) => {
+      if (requestCount++ === 0) {
+        await route.fulfill({ json: WEATHER_MOCK })         // e1: resolves immediately
+      } else {
+        await new Promise<void>((r) => setTimeout(r, 3000)) // e2: 3-second delay
+        await route.fulfill({ json: WEATHER_MOCK })
+      }
+    })
+
+    await page.goto(`${BASE}/journal/`)
+    await seedDb(
+      page,
+      [
+        { id: 'e1', date: '2026-06-01', text: 'Entry one' },
+        { id: 'e2', date: '2026-06-02', text: 'Entry two' },
+      ],
+      { latitude: 47.6062, longitude: -122.3321 },
+    )
+    await page.reload()
+    await page.getByRole('button', { name: /Sync/ }).click()
+    await page.getByTestId('sync-button').click()
+
+    // e1 should finish and render before e2's 3-second delay expires
+    await expect(page.getByTestId('weather-status-e1')).toHaveAttribute('aria-label', 'weather: synced')
+
+    // e2 must still be mid-flight — without flushSync React batches both updates
+    // and commits together when runSync resolves, at which point e2 is already synced
+    await expect(page.getByTestId('weather-status-e2')).toHaveAttribute('aria-label', 'weather: fetching')
+
+    await expect(page.getByTestId('sync-summary')).toBeVisible({ timeout: 10000 })
+  })
+})
+
 // ── TC-2: Re-run: synced weather stays synced; no second weather request (issue #49) ─
 
 test.describe('SyncSheet re-run: synced weather stays synced (issue #49 TC-2)', () => {
