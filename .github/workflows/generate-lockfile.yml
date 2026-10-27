@@ -16,7 +16,7 @@ jobs:
           node-version: '20'
 
       - name: Regenerate lockfile on Linux
-        run: rm -f package-lock.json && npm install
+        run: rm -f package-lock.json && npm install --legacy-peer-deps
 
       - uses: actions/upload-artifact@v4
         with:

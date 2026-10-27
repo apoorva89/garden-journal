@@ -24,7 +24,7 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: rm -f package-lock.json && npm install
+        run: rm -f package-lock.json && npm install --legacy-peer-deps
 
       - name: Run unit tests
         run: npm test
