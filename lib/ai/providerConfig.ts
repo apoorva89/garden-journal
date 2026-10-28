@@ -15,7 +15,7 @@ export const PROVIDERS: ProviderConfig[] = [
   {
     id: 'openai',
     label: 'OpenAI',
-    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
+    models: ['gpt-4o', 'gpt-4o-mini'],
     keyPlaceholder: 'sk-...',
   },
 ]

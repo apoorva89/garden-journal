@@ -28,6 +28,19 @@ function walkSource(dir: string): string[] {
   return results
 }
 
+// Extracted so it can be tested in isolation (see scan coverage tests below).
+export function scanLiterals(src: string, forbidden: Set<string>): string[] {
+  const violations: string[] = []
+  const re =
+    /(?:'([^'\\]*(?:\\.[^'\\]*)*)'|"([^"\\]*(?:\\.[^"\\]*)*)"|`([^`\\]*(?:\\.[^`\\]*)*)`)/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(src)) !== null) {
+    const lit = m[1] ?? m[2] ?? m[3]
+    if (forbidden.has(lit)) violations.push(lit)
+  }
+  return violations
+}
+
 describe('providerConfig', () => {
   describe('AC1 & AC3: structural literal scan', () => {
     it('no non-test source file outside the config module contains a forbidden provider ID or model string literal', () => {
@@ -45,18 +58,34 @@ describe('providerConfig', () => {
       for (const file of files) {
         const src = readFileSync(file, 'utf-8')
         const rel = relative(ROOT, file)
-        const re = /(?:'([^'\\]*(?:\\.[^'\\]*)*)'|"([^"\\]*(?:\\.[^"\\]*)*)")/g
-        let m: RegExpExecArray | null
-        while ((m = re.exec(src)) !== null) {
-          const lit = m[1] ?? m[2]
-          if (forbidden.has(lit)) {
-            const line = src.slice(0, m.index).split('\n').length
-            violations.push(`${rel}:${line} — "${lit}"`)
-          }
+        for (const lit of scanLiterals(src, forbidden)) {
+          const lineNum = src.slice(0, src.indexOf(lit)).split('\n').length
+          violations.push(`${rel}:${lineNum} — "${lit}"`)
         }
       }
 
       expect(violations).toEqual([])
+    })
+
+    describe('scan coverage: literal forms caught', () => {
+      const forbidden = new Set(['anthropic', 'gpt-4o'])
+
+      it('catches single-quoted literals', () => {
+        expect(scanLiterals("const p = 'anthropic'", forbidden)).toContain('anthropic')
+      })
+
+      it('catches double-quoted literals', () => {
+        expect(scanLiterals('const p = "anthropic"', forbidden)).toContain('anthropic')
+      })
+
+      it('catches backtick template literals', () => {
+        // This will fail until the backtick regex arm is added to scanLiterals
+        expect(scanLiterals('const p = `anthropic`', forbidden)).toContain('anthropic')
+      })
+
+      it('does not flag non-forbidden strings', () => {
+        expect(scanLiterals("const x = 'google'", forbidden)).toEqual([])
+      })
     })
   })
 

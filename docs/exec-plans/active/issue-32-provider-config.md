@@ -1,7 +1,7 @@
 # Exec Plan: Issue #32 — Provider Config Module
 
 **Phase:** issue-32  
-**Status:** in progress
+**Status:** complete
 
 ## Scope
 Create `lib/ai/providerConfig.ts` as the single source for provider IDs, labels, and model lists. Update the Settings page to derive provider buttons (and model suggestions) from config. Add tests for all four ACs. Add D-102 to DECISIONS.md.
@@ -14,7 +14,7 @@ Create `lib/ai/providerConfig.ts` as the single source for provider IDs, labels,
 - `docs/DECISIONS.md` (new D-102 entry)
 
 ## Out of scope
-- `lib/db.ts` — `apiKeys: { anthropic?: string; openai?: string }` uses TypeScript property key names, not string literals; schema change is out of scope per the issue.
+- `lib/db.ts` — `Settings.apiKeys` widened to `Record<string, string | undefined>` to remove the cast in the Settings page (review comment 1). No IDB version bump required; change is backwards-compatible.
 - Changing which providers or models are supported.
 - Sync pipeline, service worker, AI extraction logic.
 
@@ -37,14 +37,14 @@ Adding a model to config is sufficient; the literal scan confirms no other file 
 `getModelsForProvider('unknown-provider')` returns `[]`.
 
 ## Decisions
-- `lib/db.ts:143` left untouched — property key names, not runtime string literals; schema out of scope.
+- `lib/db.ts:143` `Settings.apiKeys` widened to `Record<string, string | undefined>` (review comment 1). Cast removed from Settings page.
 - Model UI: suggestion pills above the existing free-text input (approved). User can tap a known model or type anything.
 
 ## Progress log
 - [x] Approved
 - [x] Tests written and confirmed failing
-- [ ] `lib/ai/providerConfig.ts` created
-- [ ] Settings page updated
-- [ ] All tests passing
-- [ ] DECISIONS.md updated (D-102)
-- [ ] Commit, PR
+- [x] `lib/ai/providerConfig.ts` created
+- [x] Settings page updated
+- [x] All tests passing
+- [x] DECISIONS.md updated (D-102)
+- [x] Commit, PR

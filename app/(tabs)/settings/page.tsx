@@ -176,6 +176,8 @@ export default function SettingsPage() {
   const hasTextButNoCoords =
     locationDirty && settingsRef.current.locationName.trim() !== '' && settings.latitude == null
 
+  const suggestedModels = getModelsForProvider(settings.aiProvider)
+
   return (
     <div className="min-h-screen bg-cream pb-24">
       <header className="px-4 pt-12 pb-4">
@@ -301,9 +303,9 @@ export default function SettingsPage() {
             <hr className="border-bone" />
             <div className="px-4 py-3">
               <label className="block text-xs text-muted mb-1">Model</label>
-              {getModelsForProvider(settings.aiProvider).length > 0 && (
+              {suggestedModels.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-2">
-                  {getModelsForProvider(settings.aiProvider).map((m) => (
+                  {suggestedModels.map((m) => (
                     <button
                       key={m}
                       onClick={() => persist({ ...settingsRef.current, aiModel: m })}
@@ -332,7 +334,7 @@ export default function SettingsPage() {
                   <label className="block text-xs text-muted mb-1">API Key ({p.label})</label>
                   <input
                     type="password"
-                    value={(settings.apiKeys as Record<string, string | undefined>)[p.id] ?? ''}
+                    value={settings.apiKeys[p.id] ?? ''}
                     onChange={(e) =>
                       updateSettings({
                         ...settingsRef.current,
