@@ -5,8 +5,7 @@ import { getSettings, saveSettings, resetDatabase } from '@/lib/db'
 import type { Settings } from '@/lib/db'
 import { BASE_PATH } from '../../../base-path.mjs'
 import { PROVIDERS, getModelsForProvider } from '@/lib/ai/providerConfig'
-import { searchLocations, reverseGeocode } from '@/lib/orchestrator/geocode'
-import type { GeoResult } from '@/lib/orchestrator/geocode'
+import { searchLocations, reverseGeocode, type GeoResult } from '@/lib/orchestrator/geocode'
 
 const EMPTY: Settings = {
   locationName: '',

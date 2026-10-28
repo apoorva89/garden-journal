@@ -5,6 +5,10 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+function mockOk(data: unknown) {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(data) }))
+}
+
 // ── searchLocations ───────────────────────────────────────────────────────────
 
 describe('searchLocations', () => {
@@ -12,17 +16,18 @@ describe('searchLocations', () => {
     const results = [
       { name: 'Seattle', admin1: 'Washington', country: 'United States', latitude: 47.6, longitude: -122.3 },
     ]
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: () => Promise.resolve({ results }) }))
+    mockOk({ results })
     expect(await searchLocations('Seattle')).toEqual(results)
   })
 
   it('calls the correct URL', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ json: () => Promise.resolve({ results: [] }) })
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ results: [] }) })
     vi.stubGlobal('fetch', fetchMock)
     await searchLocations('Portland')
     const url = fetchMock.mock.calls[0][0] as string
     expect(url).toContain('geocoding-api.open-meteo.com/v1/search')
     expect(url).toContain('name=Portland')
+    expect(url).toContain('count=10')
   })
 
   it('returns [] on network error', async () => {
@@ -30,8 +35,13 @@ describe('searchLocations', () => {
     expect(await searchLocations('Seattle')).toEqual([])
   })
 
+  it('returns [] when response is not ok', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }))
+    expect(await searchLocations('Seattle')).toEqual([])
+  })
+
   it('returns [] when results field is absent', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ json: () => Promise.resolve({}) }))
+    mockOk({})
     expect(await searchLocations('Seattle')).toEqual([])
   })
 })
@@ -40,33 +50,17 @@ describe('searchLocations', () => {
 
 describe('reverseGeocode', () => {
   it('returns city and state from nominatim response', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        json: () => Promise.resolve({ address: { city: 'Seattle', state: 'Washington' } }),
-      }),
-    )
+    mockOk({ address: { city: 'Seattle', state: 'Washington' } })
     expect(await reverseGeocode(47.6, -122.3)).toBe('Seattle, Washington')
   })
 
   it('prefers city over town and village', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        json: () =>
-          Promise.resolve({ address: { city: 'Seattle', town: 'Eastlake', village: 'V', state: 'Washington' } }),
-      }),
-    )
+    mockOk({ address: { city: 'Seattle', town: 'Eastlake', village: 'V', state: 'Washington' } })
     expect(await reverseGeocode(47.6, -122.3)).toBe('Seattle, Washington')
   })
 
   it('falls back to town when city is absent', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        json: () => Promise.resolve({ address: { town: 'Issaquah', state: 'Washington' } }),
-      }),
-    )
+    mockOk({ address: { town: 'Issaquah', state: 'Washington' } })
     expect(await reverseGeocode(47.53, -122.03)).toBe('Issaquah, Washington')
   })
 
@@ -75,23 +69,18 @@ describe('reverseGeocode', () => {
     expect(await reverseGeocode(47.6, -122.3)).toBe('47.60, -122.30')
   })
 
+  it('falls back to raw coords when response is not ok', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false }))
+    expect(await reverseGeocode(47.6, -122.3)).toBe('47.60, -122.30')
+  })
+
   it('falls back to raw coords when no place found', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        json: () => Promise.resolve({ address: { state: 'Washington' } }),
-      }),
-    )
+    mockOk({ address: { state: 'Washington' } })
     expect(await reverseGeocode(47.6, -122.3)).toBe('47.60, -122.30')
   })
 
   it('omits state when absent', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        json: () => Promise.resolve({ address: { city: 'London' } }),
-      }),
-    )
+    mockOk({ address: { city: 'London' } })
     expect(await reverseGeocode(51.5, -0.1)).toBe('London')
   })
 })
