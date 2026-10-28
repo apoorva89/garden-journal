@@ -5,6 +5,8 @@ import { getSettings, saveSettings, resetDatabase } from '@/lib/db'
 import type { Settings } from '@/lib/db'
 import { BASE_PATH } from '../../../base-path.mjs'
 import { PROVIDERS, getModelsForProvider } from '@/lib/ai/providerConfig'
+import { searchLocations, reverseGeocode } from '@/lib/orchestrator/geocode'
+import type { GeoResult } from '@/lib/orchestrator/geocode'
 
 const EMPTY: Settings = {
   locationName: '',
@@ -14,14 +16,6 @@ const EMPTY: Settings = {
   aiProvider: '',
   aiModel: '',
   apiKeys: {},
-}
-
-interface GeoResult {
-  name: string
-  admin1?: string
-  country?: string
-  latitude: number
-  longitude: number
 }
 
 function formatResult(r: GeoResult): string {
@@ -79,17 +73,9 @@ export default function SettingsPage() {
     if (!value.trim()) return
 
     debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(value)}&count=10`,
-        )
-        const json = await res.json()
-        const results: GeoResult[] = json.results ?? []
-        setSuggestions(results)
-        setShowDropdown(results.length > 0)
-      } catch {
-        // silently ignore — search errors shouldn't disrupt the form
-      }
+      const results = await searchLocations(value)
+      setSuggestions(results)
+      setShowDropdown(results.length > 0)
     }, 300)
   }
 
@@ -130,20 +116,7 @@ export default function SettingsPage() {
     navigator.geolocation.getCurrentPosition(
       async ({ coords }) => {
         const { latitude, longitude } = coords
-        // Default display name is raw coordinates — replaced if reverse geocoding succeeds
-        let locationName = `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`
-
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
-          )
-          const json = await res.json()
-          const { city, town, village, state } = json.address ?? {}
-          const place = city ?? town ?? village
-          if (place) locationName = [place, state].filter(Boolean).join(', ')
-        } catch {
-          // Fall through — raw coordinates are still a valid display name
-        }
+        const locationName = await reverseGeocode(latitude, longitude)
 
         const next: Settings = { ...settingsRef.current, locationName, latitude, longitude }
         setLocationDirty(false)

@@ -33,7 +33,9 @@ The data and logic layer. UI does not appear here.
 |---|---|
 | `lib/db.ts` | IndexedDB schema and all reads and writes. The only module that touches IndexedDB, and the source of truth for stored types. See §3. |
 | `lib/sync.ts` | Sync orchestrator. Runs the weather and extraction steps for unsynced entries and writes the results through `lib/db.ts`. See §4. |
-| `lib/geocode.ts` | Geocoding client for location search in Settings. |
+| `lib/orchestrator/geocode.ts` | Geocoding client for location search in Settings. Exports `searchLocations`, `reverseGeocode`, and `GeoResult`. |
+| `lib/orchestrator/weather.ts` | Placeholder for future weather network calls (weather sync currently in `lib/weatherSync.ts`). |
+| `lib/orchestrator/ai.ts` | Placeholder for future AI network calls. |
 | `lib/ai/extractionSpec.ts` | One Zod schema for extracted events; the model's tool schema and the TypeScript type are both derived from it. See §5. |
 | `lib/ai/provider.ts` | The interface between the app and any AI provider: a single `extract()` method. |
 | `lib/weatherSync.ts` | Open-Meteo client. Returns weather for a date and location; network errors return `null`. |
@@ -188,7 +190,7 @@ These must not be violated. Coding agents should check this list before writing 
 
 1. Dependencies run one way: `app/` → `components/` → `lib/`. `lib/` never imports from `components/` or `app/`, and `components/` never imports from `app/`.
 2. Only `lib/db.ts` touches IndexedDB.
-3. Network-facing modules (`lib/weatherSync.ts`, `lib/geocode.ts`, AI providers) never touch the database. The sync orchestrator reads and writes; they only fetch.
+3. Network-facing modules (`lib/weatherSync.ts`, `lib/orchestrator/geocode.ts`, AI providers) never touch the database. The sync orchestrator reads and writes; they only fetch.
 4. Network calls originate in `lib/`.
 
 ### Storage
