@@ -1046,3 +1046,13 @@ The patterns appear mismatched to the app's URL structure at first glance: all p
 **Decision:** On startup, before any data is read, check that the local DB contains the stores and indexes the code expects. If it does not, show a blocking screen asking the user to wipe the database. The check never migrates or automatically wipes; the user must confirm.
 **Alternatives:** Incrementing the DB version to trigger a migration (D-034 rejects migrations). A non-blocking warning banner (easily missed).
 **Consequences:** A tester on a stale DB sees the blocking screen immediately. Legacy data shapes — a field holding an unexpected value — are not detectable by this check.
+
+### D-102 — Provider and model lists live in a single config module
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-28
+**Phase:** issue-32
+**Context:** ARCHITECTURE.md §9 invariant 18 and D-035 state that provider and model come from Settings, never from code. In practice the Settings page contained a hardcoded `['anthropic', 'openai']` array, making it impossible to enforce this invariant by test. The same strings would have to be updated in multiple places when a provider is added.
+**Decision:** A single module `lib/ai/providerConfig.ts` holds the canonical list of `ProviderConfig` entries (ID, label, model names, key placeholder). The Settings page imports from this module; no other source file names a provider ID or model string as a literal. A structural literal scan test (AC1) enforces this mechanically. Provider IDs and model names in `lib/db.ts` are TypeScript property key names (not string literals) and are excluded from the scan; schema changes to `lib/db.ts` remain out of scope per D-035.
+**Alternatives:** Keeping the inline array (no enforcement). A union type for providers (rejected by D-035).
+**Consequences:** Adding a provider or model requires editing only `lib/ai/providerConfig.ts`. The structural scan fails the build if a string literal escapes into other source files.

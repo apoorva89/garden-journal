@@ -75,9 +75,9 @@ test('wipe confirm dismiss stays on settings', async ({ page }) => {
 
 test('clicking a provider pill saves immediately without blur', async ({ page }) => {
   await page.goto(`${BASE}/settings/`)
-  await page.getByRole('button', { name: 'anthropic' }).click()
+  await page.getByRole('button', { name: 'Anthropic' }).click()
   await page.reload()
-  await expect(page.getByRole('button', { name: 'anthropic' })).toHaveClass(/bg-forest/)
+  await expect(page.getByRole('button', { name: 'Anthropic' })).toHaveClass(/bg-forest/)
 })
 
 test('last frost date, model, and API key persist after blur', async ({ page }) => {
@@ -86,8 +86,8 @@ test('last frost date, model, and API key persist after blur', async ({ page }) 
   await page.locator('input[type="date"]').fill('2026-04-15')
   await page.locator('input[type="date"]').press('Tab')
 
-  await page.getByPlaceholder('e.g. claude-sonnet-4-6').fill('claude-sonnet-4-6')
-  await page.getByPlaceholder('e.g. claude-sonnet-4-6').press('Tab')
+  await page.getByPlaceholder('or type a model name').fill('claude-sonnet-4-6')
+  await page.getByPlaceholder('or type a model name').press('Tab')
 
   await page.getByPlaceholder('sk-ant-...').fill('sk-ant-test')
   await page.getByPlaceholder('sk-ant-...').press('Tab')
@@ -95,6 +95,6 @@ test('last frost date, model, and API key persist after blur', async ({ page }) 
   await page.reload()
 
   await expect(page.locator('input[type="date"]')).toHaveValue('2026-04-15')
-  await expect(page.getByPlaceholder('e.g. claude-sonnet-4-6')).toHaveValue('claude-sonnet-4-6')
+  await expect(page.getByPlaceholder('or type a model name')).toHaveValue('claude-sonnet-4-6')
   await expect(page.getByPlaceholder('sk-ant-...')).toHaveValue('sk-ant-test')
 })

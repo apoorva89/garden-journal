@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useRef } from 'react'
 import { getSettings, saveSettings, resetDatabase } from '@/lib/db'
 import type { Settings } from '@/lib/db'
 import { BASE_PATH } from '../../../base-path.mjs'
+import { PROVIDERS, getModelsForProvider } from '@/lib/ai/providerConfig'
 
 const EMPTY: Settings = {
   locationName: '',
@@ -276,15 +277,15 @@ export default function SettingsPage() {
             <div className="px-4 py-3">
               <label className="block text-xs text-muted mb-2">Provider</label>
               <div className="flex gap-2 mb-2">
-                {(['anthropic', 'openai'] as const).map((p) => (
+                {PROVIDERS.map((p) => (
                   <button
-                    key={p}
-                    onClick={() => persist({ ...settings, aiProvider: p })}
+                    key={p.id}
+                    onClick={() => persist({ ...settings, aiProvider: p.id })}
                     className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                      settings.aiProvider === p ? 'bg-forest text-cream' : 'bg-bone text-muted'
+                      settings.aiProvider === p.id ? 'bg-forest text-cream' : 'bg-bone text-muted'
                     }`}
                   >
-                    {p}
+                    {p.label}
                   </button>
                 ))}
               </div>
@@ -300,43 +301,51 @@ export default function SettingsPage() {
             <hr className="border-bone" />
             <div className="px-4 py-3">
               <label className="block text-xs text-muted mb-1">Model</label>
+              {getModelsForProvider(settings.aiProvider).length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {getModelsForProvider(settings.aiProvider).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => persist({ ...settingsRef.current, aiModel: m })}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                        settings.aiModel === m ? 'bg-forest text-cream' : 'bg-bone text-muted'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              )}
               <input
                 type="text"
                 value={settings.aiModel}
                 onChange={(e) => updateSettings({ ...settingsRef.current, aiModel: e.target.value })}
                 onBlur={() => persist(settingsRef.current)}
-                placeholder="e.g. claude-sonnet-4-6"
+                placeholder="or type a model name"
                 className="w-full bg-transparent text-ink text-base outline-none placeholder:text-mushroom"
               />
             </div>
-            <hr className="border-bone" />
-            <div className="px-4 py-3">
-              <label className="block text-xs text-muted mb-1">API Key (Anthropic)</label>
-              <input
-                type="password"
-                value={settings.apiKeys?.anthropic ?? ''}
-                onChange={(e) =>
-                  updateSettings({ ...settingsRef.current, apiKeys: { ...settingsRef.current.apiKeys, anthropic: e.target.value } })
-                }
-                onBlur={() => persist(settingsRef.current)}
-                placeholder="sk-ant-..."
-                className="w-full bg-transparent text-ink text-base outline-none placeholder:text-mushroom font-mono"
-              />
-            </div>
-            <hr className="border-bone" />
-            <div className="px-4 py-3">
-              <label className="block text-xs text-muted mb-1">API Key (OpenAI)</label>
-              <input
-                type="password"
-                value={settings.apiKeys?.openai ?? ''}
-                onChange={(e) =>
-                  updateSettings({ ...settingsRef.current, apiKeys: { ...settingsRef.current.apiKeys, openai: e.target.value } })
-                }
-                onBlur={() => persist(settingsRef.current)}
-                placeholder="sk-..."
-                className="w-full bg-transparent text-ink text-base outline-none placeholder:text-mushroom font-mono"
-              />
-            </div>
+            {PROVIDERS.map((p) => (
+              <Fragment key={p.id}>
+                <hr className="border-bone" />
+                <div className="px-4 py-3">
+                  <label className="block text-xs text-muted mb-1">API Key ({p.label})</label>
+                  <input
+                    type="password"
+                    value={(settings.apiKeys as Record<string, string | undefined>)[p.id] ?? ''}
+                    onChange={(e) =>
+                      updateSettings({
+                        ...settingsRef.current,
+                        apiKeys: { ...settingsRef.current.apiKeys, [p.id]: e.target.value },
+                      })
+                    }
+                    onBlur={() => persist(settingsRef.current)}
+                    placeholder={p.keyPlaceholder}
+                    className="w-full bg-transparent text-ink text-base outline-none placeholder:text-mushroom font-mono"
+                  />
+                </div>
+              </Fragment>
+            ))}
           </div>
         </section>
       </div>
