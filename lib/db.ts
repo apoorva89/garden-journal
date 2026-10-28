@@ -140,7 +140,7 @@ export interface Settings {
   longitude: number | null
   aiProvider: string
   aiModel: string
-  apiKeys: { anthropic?: string; openai?: string }
+  apiKeys: Record<string, string | undefined>
 }
 
 // ── DB Schema (internal) ──────────────────────────────────────────────────────
