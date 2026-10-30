@@ -127,7 +127,7 @@ None.
 
 ## 9. Progress
 
-None.
+- 2026-10-29: Wrote failing tests in `lib/__tests__/extraction.test.ts` (updated all fixtures for `nurseryName`/`variety`, added AC-7) and new `lib/__tests__/requestBuilder.test.ts` (AC-1 through AC-9). Confirmed 2 failures in extraction.test.ts (nurseryName/variety not in schema) and 1 ERR_MODULE_NOT_FOUND in requestBuilder.test.ts. Added `nurseryName` and `variety` nullable fields to `ExtractedEventSchema`, removed `extractionToolSchema` export, created `lib/ai/requestBuilder.ts` with `buildExtractionRequest`. All 114 tests pass. Lint clean on changed files (pre-existing lint errors in other files are unrelated). Typecheck clean. Build passes.
 
 ---
 
@@ -150,3 +150,4 @@ None.
 ## 12. Outcomes & retrospective
 
 Not yet filled in.
+

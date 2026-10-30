@@ -942,6 +942,16 @@ Entries written before this log existed have no dates. New entries include a **D
 **Alternatives:** Not recorded.
 **Consequences:** The location-missing banner is unaffected. The existing AC-12 tests seed at least one text entry, so they continue to pass. The no-text case was not covered by a test before this entry was written.
 
+### D-103 — Extraction request builder return type and `input_schema` field name
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-29
+**Phase:** 8d-2
+**Context:** `buildExtractionRequest()` must stay provider-agnostic (D-035) but its output must carry a tool definition. Options: (a) return a provider-agnostic `ExtractionRequest` type with the tool schema embedded under an app-defined field name; (b) return the Anthropic wire format directly now and adapt in 8d-3.
+**Decision:** Option (a). `buildExtractionRequest` returns `{ request: ExtractionRequest; labelMap: Record<string, string> }` where `ExtractionRequest = { system: string; userMessage: string; tool: ExtractionTool }`. `ExtractionTool` uses the field name `input_schema` (Anthropic's vocabulary) rather than `parameters` (OpenAI's vocabulary). The provider layer in 8d-3 is responsible for translating to the wire format of the chosen provider; if an OpenAI-compatible provider is added later, 8d-3 must rename the field.
+**Alternatives:** Option (b): couples an app-internal type to Anthropic's shape, making a provider swap a structural change rather than a translation step.
+**Consequences:** 8d-3 receives a provider-agnostic type and owns the wire translation. Phases that consume `ExtractionRequest` directly (8d-3, 8d-4) must not assume any provider-specific field beyond `input_schema`; if a second provider is added, 8d-3 maps `input_schema` to its equivalent.
+
 ---
 
 ## Infrastructure & testing

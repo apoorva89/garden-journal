@@ -37,6 +37,7 @@ The data and logic layer. UI does not appear here.
 | `lib/orchestrator/weather.ts` | Placeholder for future weather network calls (weather sync currently in `lib/weatherSync.ts`). |
 | `lib/orchestrator/ai.ts` | Placeholder for future AI network calls. |
 | `lib/ai/extractionSpec.ts` | One Zod schema for extracted events; the model's tool schema and the TypeScript type are both derived from it. See §5. |
+| `lib/ai/requestBuilder.ts` | Turns a journal entry and its context into a provider-agnostic `ExtractionRequest` (system prompt, user message, tool definition) and a `labelMap` mapping ephemeral problem labels to database IDs. Pure function; no network or database access. See §5. |
 | `lib/ai/provider.ts` | The interface between the app and any AI provider: a single `extract()` method. |
 | `lib/weatherSync.ts` | Open-Meteo client. Returns weather for a date and location; network errors return `null`. |
 | `lib/resizeImage.ts` | Downscales and re-encodes photos before storage. Used wherever photos are accepted. |
@@ -117,6 +118,10 @@ Entry text is untrusted input to the model: a pasted web page or a crafted note 
 3. **Validation (D-060).** Every response is parsed against `ExtractedEventSchema` before use.
 4. **No database IDs (D-062, D-063).** The model sees and emits names and ephemeral labels only: `matchedRosterName` is a crop name, `linkedProblemRef` is a per-call label such as `P1`. App code resolves both to database IDs after parsing, so no ID from a model response is ever written directly.
 5. **Human confirm.** Nothing reaches `cropEvents`, `generalNotes`, or `CropType.lessons` until the user taps Confirm on that card. A prompt injection that produces a plausible extraction can still only reach the database through the user's own approval.
+
+### Request building
+
+`lib/ai/requestBuilder.ts` contains `buildExtractionRequest()`, a pure function that takes a `BuildExtractionInput` (entry text, entry date, next-season note, crop roster, open problems) and returns a provider-agnostic `ExtractionRequest` plus a `labelMap`. The `ExtractionRequest` holds the system prompt, user message, and tool definition; wire-format translation to a specific provider's API shape is left to the provider layer (8d-3). The `labelMap` maps ephemeral labels (`P1`, `P2`, …) to database IDs so the event resolver (8d-4) can link model-returned labels back to real records without the model ever seeing a database ID (D-103).
 
 ### One schema, three outputs
 
