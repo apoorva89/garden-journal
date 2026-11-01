@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { buildExtractionRequest } from '../ai/requestBuilder'
+import { buildExtractionRequest, type OpenProblemInput } from '../ai/requestBuilder'
 import { ExtractedEventSchema } from '../ai/extractionSpec'
-import type { CropType, CropEvent } from '../db'
+import type { CropType } from '../db'
 
 function makeCropType(id: string, name: string): CropType {
   return { id, name, lessons: [] }
 }
 
-function makeProblem(id: string, cropInstanceId: string, date: string, notes: string): CropEvent {
+function makeProblem(id: string, cropInstanceId: string, date: string, notes: string, cropName = 'Test Crop'): OpenProblemInput {
   return {
     id,
     cropInstanceId,
@@ -21,6 +21,7 @@ function makeProblem(id: string, cropInstanceId: string, date: string, notes: st
     weatherC: null,
     weatherIcon: null,
     resolved: false,
+    cropName,
   }
 }
 

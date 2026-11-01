@@ -128,6 +128,7 @@ None.
 ## 9. Progress
 
 - 2026-10-29: Wrote failing tests in `lib/__tests__/extraction.test.ts` (updated all fixtures for `nurseryName`/`variety`, added AC-7) and new `lib/__tests__/requestBuilder.test.ts` (AC-1 through AC-9). Confirmed 2 failures in extraction.test.ts (nurseryName/variety not in schema) and 1 ERR_MODULE_NOT_FOUND in requestBuilder.test.ts. Added `nurseryName` and `variety` nullable fields to `ExtractedEventSchema`, removed `extractionToolSchema` export, created `lib/ai/requestBuilder.ts` with `buildExtractionRequest`. All 114 tests pass. Lint clean on changed files (pre-existing lint errors in other files are unrelated). Typecheck clean. Build passes.
+- 2026-11-01: Post-review fix (D-063 crop name in problem lines, human-authorized). Wrote repro test confirming crop name absent from problem lines. Changed `openProblems: CropEvent[]` → `openProblems: OpenProblemInput[]`; updated problem line format to `P1 (cropName, date): excerpt`. Updated `makeProblem` helper in test to return `OpenProblemInput`. All 115 tests pass. D-063 and ARCHITECTURE.md §5 updated to document the `OpenProblemInput` type and caller responsibility.
 
 ---
 
@@ -144,6 +145,7 @@ None.
 - 2026-10-29: **D-3: Problem notes are sent as a bounded excerpt, not full text.** Each open problem's `notes` is truncated to its first 200 characters, with `…` appended when the original is longer. Reason: this conforms to D-063 (Current), which specifies "a notes excerpt", and to the 8d-2 build-plan scope ("a notes excerpt"); 200 characters is enough for the model to identify which open problem a Fix refers to. Alternatives considered: (a) passing the full `notes` text — rejected because it departs from the current decision D-063 and from the build plan without approval; reversing D-063 would require a human decision and a new D-entry, so the plan conforms rather than reverses. (b) a shorter cap such as 80 characters — rejected because it risks dropping the detail that distinguishes similar problems. This earlier plan draft had proposed full notes (former D-3); that proposal is dropped in favour of the current decision.
 - 2026-10-29: **D-4: Extraction tool name and description** → name: `extract_garden_events`; description: `"Extract structured garden events from a journal entry."` Reason: matches the tool's `events` array shape, clearly scoped to garden journalling, and imposes no constraint on any invariant.
 - 2026-10-29: **D-5: Crop roster format inside `<crop_roster>`** → one crop name per line. Reason: easier for the model to enumerate than comma-separated; AC-5 asserts only that every name appears inside the tags.
+- 2026-11-01: **D-6: `openProblems` carries resolved `cropName` (human-authorized post-review)** → `BuildExtractionInput.openProblems` changed from `CropEvent[]` to `OpenProblemInput[]` (`CropEvent & { cropName: string }`). Reason: D-063 specifies "crop name, date, and a notes excerpt" in each problem line; the caller (8d-5) resolves names before calling the builder. The original plan §2 listed `CropEvent[]`; the human approved this deviation via PR comment 2026-11-01.
 
 ---
 

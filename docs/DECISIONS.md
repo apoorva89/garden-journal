@@ -684,8 +684,9 @@ Entries written before this log existed have no dates. New entries include a **D
 **Phase:** 8c
 **Context:** The model needs to link a Fix to an open problem.
 **Decision:** Open problems are sent with per-call labels (`P1`, `P2`, …) plus crop name, date, and a notes excerpt. The model returns a label; the app maps it to a real ID and discards the label. No ID from a model response ever reaches the database directly.
+**Implementation note (8d-2):** `BuildExtractionInput.openProblems` is typed as `OpenProblemInput[]` (`CropEvent & { cropName: string }`). The caller (8d-5) resolves each problem's `cropInstanceId` to a crop name before calling `buildExtractionRequest`; the pure builder function receives names already resolved. Problem lines are formatted `P1 (crop name, date): excerpt`.
 **Alternatives:** Sending real database IDs. Matching on the problem's text, which is less reliable than echoing a label.
-**Consequences:** Every ID in the database was resolved by app code against app data.
+**Consequences:** Every ID in the database was resolved by app code against app data. The orchestrator layer (8d-5) is responsible for crop-name resolution before calling the builder.
 
 ### D-064 — Prompt-injection boundary
 **Type:** Technical

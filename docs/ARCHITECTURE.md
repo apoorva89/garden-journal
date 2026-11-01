@@ -121,7 +121,7 @@ Entry text is untrusted input to the model: a pasted web page or a crafted note 
 
 ### Request building
 
-`lib/ai/requestBuilder.ts` contains `buildExtractionRequest()`, a pure function that takes a `BuildExtractionInput` (entry text, entry date, next-season note, crop roster, open problems) and returns a provider-agnostic `ExtractionRequest` plus a `labelMap`. The `ExtractionRequest` holds the system prompt, user message, and tool definition; wire-format translation to a specific provider's API shape is left to the provider layer (8d-3). The `labelMap` maps ephemeral labels (`P1`, `P2`, …) to database IDs so the event resolver (8d-4) can link model-returned labels back to real records without the model ever seeing a database ID (D-103).
+`lib/ai/requestBuilder.ts` contains `buildExtractionRequest()`, a pure function that takes a `BuildExtractionInput` (entry text, entry date, next-season note, crop roster, open problems) and returns a provider-agnostic `ExtractionRequest` plus a `labelMap`. `openProblems` is typed as `OpenProblemInput[]` — each element is a `CropEvent` augmented with a resolved `cropName` string; the caller (8d-5) looks up the name before calling the builder. Each open problem appears in the prompt as `P1 (crop name, date): excerpt` (D-063). The `ExtractionRequest` holds the system prompt, user message, and tool definition; wire-format translation to a specific provider's API shape is left to the provider layer (8d-3). The `labelMap` maps ephemeral labels (`P1`, `P2`, …) to database IDs so the event resolver (8d-4) can link model-returned labels back to real records without the model ever seeing a database ID (D-103).
 
 ### One schema, three outputs
 

@@ -18,12 +18,14 @@ export interface ExtractionRequest {
   tool: ExtractionTool
 }
 
+export type OpenProblemInput = CropEvent & { cropName: string }
+
 export interface BuildExtractionInput {
   entryText: string
   entryDate: string
   nextSeasonNote: string
   roster: CropType[]
-  openProblems: CropEvent[]
+  openProblems: OpenProblemInput[]
 }
 
 const SYSTEM_PROMPT = `You extract structured garden events from journal entries.
@@ -53,7 +55,7 @@ export function buildExtractionRequest(input: BuildExtractionInput): {
     labelMap[label] = problem.id
     const notes = problem.notes
     const excerpt = notes.length > 200 ? notes.slice(0, 200) + '…' : notes
-    problemLines.push(`${label} (${problem.date}): ${excerpt}`)
+    problemLines.push(`${label} (${problem.cropName}, ${problem.date}): ${excerpt}`)
   }
 
   const parts: string[] = []
