@@ -193,6 +193,17 @@ describe('buildExtractionRequest', () => {
     expect(reqExact.userMessage).not.toContain('B'.repeat(200) + '…')
   })
 
+  it('no extra blank lines between sections', () => {
+    const { request } = buildExtractionRequest({
+      entryText: 'Checked the garden.',
+      entryDate: '2026-06-15',
+      nextSeasonNote: '',
+      roster: [],
+      openProblems: [],
+    })
+    expect(request.userMessage).not.toContain('\n\n\n\n')
+  })
+
   it('problem line includes crop name (D-063)', () => {
     const problem = { ...makeProblem('id-1', 'ci-1', '2026-05-01', 'Spider mites on lower leaves'), cropName: 'Peppers' }
 
