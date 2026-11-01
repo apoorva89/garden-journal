@@ -174,7 +174,7 @@ describe('buildExtractionRequest', () => {
       entryDate: '2026-06-15',
       nextSeasonNote: '',
       roster: [],
-      openProblems: [makeProblem('id-long', 'ci-1', '2026-05-01', longNotes)],
+      openProblems: [{ ...makeProblem('id-long', 'ci-1', '2026-05-01', longNotes), cropName: 'Tomatoes' }],
     })
 
     expect(reqLong.userMessage).toContain('A'.repeat(200) + '…')
@@ -185,10 +185,24 @@ describe('buildExtractionRequest', () => {
       entryDate: '2026-06-15',
       nextSeasonNote: '',
       roster: [],
-      openProblems: [makeProblem('id-exact', 'ci-2', '2026-05-02', exactNotes)],
+      openProblems: [{ ...makeProblem('id-exact', 'ci-2', '2026-05-02', exactNotes), cropName: 'Basil' }],
     })
 
     expect(reqExact.userMessage).toContain('B'.repeat(200))
     expect(reqExact.userMessage).not.toContain('B'.repeat(200) + '…')
+  })
+
+  it('problem line includes crop name (D-063)', () => {
+    const problem = { ...makeProblem('id-1', 'ci-1', '2026-05-01', 'Spider mites on lower leaves'), cropName: 'Peppers' }
+
+    const { request } = buildExtractionRequest({
+      entryText: 'Treated the plants.',
+      entryDate: '2026-06-15',
+      nextSeasonNote: '',
+      roster: [],
+      openProblems: [problem],
+    })
+
+    expect(request.userMessage).toMatch(/<open_problems>[\s\S]*Peppers[\s\S]*<\/open_problems>/)
   })
 })
