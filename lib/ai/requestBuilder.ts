@@ -61,7 +61,6 @@ export function buildExtractionRequest(input: BuildExtractionInput): {
   const parts: string[] = []
 
   parts.push(`Entry date: ${entryDate}`)
-  parts.push('')
   parts.push(`<entry_text>\n${entryText}\n</entry_text>`)
 
   if (nextSeasonNote !== '') {
