@@ -30,6 +30,8 @@ Two to four sentences: what this phase delivers and why now. Name the ARCHITECTU
 
 Expected files, grouped by layer (lib/db.ts, lib/, components/, app/, tests/, e2e/). Mark any file in a stop-and-ask area with [STOP-ASK].
 
+Note: a new `lib/` module always requires (a) a row in `ARCHITECTURE.md §2` and (b) if it belongs to a named pipeline section in `ARCHITECTURE.md`, a mention there. List those doc updates here.
+
 ## 4. Acceptance criteria
 
 Each criterion is a test case. Write the test first and confirm it fails for the right reason. The criterion is covered only by a test that asserts the observable outcome the criterion describes, for example the stored record after an edit. A test that only checks that code runs, that a component renders, or that a function was called does not count.
@@ -66,6 +68,8 @@ If the phase requires changing an invariant in ARCHITECTURE §9, stop and ask be
 ## 7. Decisions needed before approval
 
 Decisions the approver must make before implementation. Each has options and a recommendation. Once the plan is approved, these move into the Decision Log as resolved.
+
+Also ask: does this phase define types or interfaces that downstream phases will consume? If so, plan a permanent D-entry in `docs/DECISIONS.md` now — a §11 entry alone is not sufficient for cross-phase interface decisions. For any new pure function, verify that its input type contains everything the function needs directly — not references the function would have to resolve. If the caller must transform or enrich data before calling, state that responsibility in §2.
 
 - D-1: question. Options: (a) ... (b) ... Recommendation: ...
 
