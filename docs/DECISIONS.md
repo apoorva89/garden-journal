@@ -684,8 +684,9 @@ Entries written before this log existed have no dates. New entries include a **D
 **Phase:** 8c
 **Context:** The model needs to link a Fix to an open problem.
 **Decision:** Open problems are sent with per-call labels (`P1`, `P2`, …) plus crop name, date, and a notes excerpt. The model returns a label; the app maps it to a real ID and discards the label. No ID from a model response ever reaches the database directly.
+**Implementation note (8d-2):** `BuildExtractionInput.openProblems` is typed as `OpenProblemInput[]` (`CropEvent & { cropName: string }`). The caller (8d-5) resolves each problem's `cropInstanceId` to a crop name before calling `buildExtractionRequest`; the pure builder function receives names already resolved. Problem lines are formatted `P1 (crop name, date): excerpt`.
 **Alternatives:** Sending real database IDs. Matching on the problem's text, which is less reliable than echoing a label.
-**Consequences:** Every ID in the database was resolved by app code against app data.
+**Consequences:** Every ID in the database was resolved by app code against app data. The orchestrator layer (8d-5) is responsible for crop-name resolution before calling the builder.
 
 ### D-064 — Prompt-injection boundary
 **Type:** Technical
@@ -941,6 +942,16 @@ Entries written before this log existed have no dates. New entries include a **D
 **Rationale:** Commit 7d13b0f states: "AI configuration is irrelevant when all pending entries have no text." Commit c7aab0b documents that legacy `text: null` entries exist on-device. Neither commit records a user-reported bug that triggered the change.
 **Alternatives:** Not recorded.
 **Consequences:** The location-missing banner is unaffected. The existing AC-12 tests seed at least one text entry, so they continue to pass. The no-text case was not covered by a test before this entry was written.
+
+### D-103 — Extraction request builder return type and `input_schema` field name
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-10-29
+**Phase:** 8d-2
+**Context:** `buildExtractionRequest()` must stay provider-agnostic (D-035) but its output must carry a tool definition. Options: (a) return a provider-agnostic `ExtractionRequest` type with the tool schema embedded under an app-defined field name; (b) return the Anthropic wire format directly now and adapt in 8d-3.
+**Decision:** Option (a). `buildExtractionRequest` returns `{ request: ExtractionRequest; labelMap: Record<string, string> }` where `ExtractionRequest = { system: string; userMessage: string; tool: ExtractionTool }`. `ExtractionTool` uses the field name `input_schema` (Anthropic's vocabulary) rather than `parameters` (OpenAI's vocabulary). The provider layer in 8d-3 is responsible for translating to the wire format of the chosen provider; if an OpenAI-compatible provider is added later, 8d-3 must rename the field.
+**Alternatives:** Option (b): couples an app-internal type to Anthropic's shape, making a provider swap a structural change rather than a translation step.
+**Consequences:** 8d-3 receives a provider-agnostic type and owns the wire translation. Phases that consume `ExtractionRequest` directly (8d-3, 8d-4) must not assume any provider-specific field beyond `input_schema`; if a second provider is added, 8d-3 maps `input_schema` to its equivalent.
 
 ---
 
