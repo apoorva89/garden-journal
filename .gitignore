@@ -41,3 +41,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# flow runtime outputs
+.flow/combined/
+.flow/*-run.json
+.flow/pr-body.md
+.flow/pr-comments.txt
+.flow/fix-report.txt
+.flow/pr-reviewer-a-output.txt
+.flow/pr-reviewer-b-output.txt
