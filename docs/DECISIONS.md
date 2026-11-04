@@ -953,6 +953,40 @@ Entries written before this log existed have no dates. New entries include a **D
 **Alternatives:** Option (b): couples an app-internal type to Anthropic's shape, making a provider swap a structural change rather than a translation step.
 **Consequences:** 8d-3 receives a provider-agnostic type and owns the wire translation. Phases that consume `ExtractionRequest` directly (8d-3, 8d-4) must not assume any provider-specific field beyond `input_schema`; if a second provider is added, 8d-3 maps `input_schema` to its equivalent.
 
+### D-104 — OpenAI provider as a dedicated sub-phase, not folded into eval
+**Type:** Technical
+**Status:** Planned, not built
+**Date:** 2026-11-03
+**Phase:** 8d-3 (scheduled here; not yet built)
+**Context:** 8d-3 implements Anthropic only. `getProvider('openai')` throws a "not implemented" error until a later phase adds it. Q: when and how should it land?
+**Decision:** OpenAI is implemented in a dedicated sub-phase sibling to 8d-3, scoped to `lib/ai/openaiProvider.ts`, the `getProvider` routing branch, the OpenAI provider-id constant already in `providerConfig.ts`, the `input_schema`→`parameters` mapping (D-103), and `fetch`-stubbed unit tests. The AI evaluation set is the likely trigger for scheduling it, but provider implementation and eval design stay separate phases. Scheduling is a build-plan edit and goes through the human (AGENTS.md).
+**Alternatives:** Folding OpenAI into the eval phase (couples a mechanical task to an open-ended design effort) — rejected.
+**Consequences:** When a second provider is added, the wire-format translation is bounded, independently reviewable, and schema-free (D-035).
+
+### D-105 — Anthropic `max_tokens` is a fixed constant; truncated responses fail validation
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-11-03
+**Phase:** 8d-3
+**Context:** The Anthropic Messages API requires `max_tokens`. A truncated response (`stop_reason: "max_tokens"`) is billed; D-067 requires the usage log to be written before any failure.
+**Decision:** `AnthropicProvider` sends `max_tokens: 4096` (a numeric constant in `lib/ai/anthropicProvider.ts`). The provider does not throw on `stop_reason === "max_tokens"`: it returns `{ events: <partial/invalid tool input>, usage }`. `runExtraction` writes the `ApiUsageLog` first (D-067), then `z.array(ExtractedEventSchema).parse(...)` throws — the same validation-failure path as AC-3. No automatic retry (I-19); the user re-runs manually (D-068). The constant is not a Settings field (no schema change needed) and is not a provider/model string literal (not in scope of I-18).
+**Alternatives:** Making `max_tokens` a Settings field (requires a `lib/db.ts` schema change, stop-and-ask) — rejected; computing it dynamically from input size — rejected as unnecessary at personal scale; throwing in the provider on truncation — rejected, loses the usage log (violates D-067).
+**Consequences:** A personal journal entry is unlikely to exceed 4096 output tokens; revisit only if real entries hit the cap.
+
+### D-106 — `AIProvider.extract()` interface, `runExtraction` orchestration seam, and usage-field mapping
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-11-03
+**Phase:** 8d-3
+**Context:** This is a cross-phase interface consumed by 8d-5. Per the 8d-2 retrospective, cross-phase interfaces need a durable D-entry. Builds on D-059, D-067, D-068, D-035, D-092, D-058.
+**Decision:**
+- `AIProvider.extract(request: ExtractionRequest, config: { model: string; apiKey: string }): Promise<RawExtractionResult>` where `RawExtractionResult = { events: unknown; usage: UsageData | null }`. `events` is `unknown` because the model response is untrusted until validated (§5). `usage` is `null` only when the transport succeeded but the response carried no usage field.
+- `UsageData = { inputTokens: number; outputTokens: number; rawUsage: Record<string, number> }`. Mapping: `inputTokens` ← `usage.input_tokens`, `outputTokens` ← `usage.output_tokens`, `rawUsage` ← the full provider usage object (including cache/reasoning fields when present, per D-031).
+- `runExtraction(params: { entryId: string; request: ExtractionRequest; settings: Settings; database?: GardenDB }): Promise<ExtractedEvent[]>` is the orchestration seam in `lib/orchestrator/ai.ts`. It logs usage before validation (D-067) so a billed call is never lost on a validation failure. `ApiUsageLog.date` is the call timestamp (`new Date().toISOString()`), not the entry date, because the log records a billing event at a point in time.
+- The provider does the network call only (no DB, no validation), mirroring the weather split (I-3).
+**Alternatives:** `extract(entryText, roster, openProblems)` builds the request internally — rejected, duplicates 8d-2's responsibility (D-035); logging and validating inside the provider — rejected, breaks I-3.
+**Consequences:** 8d-5 calls `runExtraction` and can read usage from `ApiUsageLog` via `by-entryId` index. Provider implementations added later follow the same thin-network-boundary contract.
+
 ---
 
 ## Infrastructure & testing
