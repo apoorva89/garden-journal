@@ -175,4 +175,13 @@ describe('runExtraction', () => {
     expect(body.model).toBe('claude-opus-4-8')
     expect(headers.get('x-api-key')).toBe('sk-ant-custom-key')
   })
+
+  it('request carries anthropic-dangerous-direct-browser-access header for CORS', async () => {
+    const fetchMock = makeFetchOk(WELL_FORMED_RESPONSE)
+    vi.stubGlobal('fetch', fetchMock)
+    await runExtraction({ entryId: ENTRY_ID, request: MINIMAL_REQUEST, settings: ANTHROPIC_SETTINGS, database: db })
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const headers = new Headers(init.headers as HeadersInit)
+    expect(headers.get('anthropic-dangerous-direct-browser-access')).toBe('true')
+  })
 })
