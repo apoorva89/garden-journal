@@ -3,6 +3,7 @@ import { IDBFactory } from 'fake-indexeddb'
 import { openGardenDB } from '../db'
 import type { GardenDB, Settings } from '../db'
 import { runExtraction } from '../orchestrator/ai'
+import { getProvider } from '../ai/provider'
 import type { ExtractionRequest } from '../ai/requestBuilder'
 
 function freshDb() {
@@ -94,8 +95,7 @@ describe('runExtraction', () => {
       settings: ANTHROPIC_SETTINGS,
       database: db,
     })
-    expect(events).toHaveLength(1)
-    expect(events[0]).toMatchObject({ eventType: 'observation', matchedRosterName: 'Tomatoes' })
+    expect(events).toEqual(VALID_EVENTS)
   })
 
   it('success logs one ApiUsageLog with rawUsage', async () => {
@@ -150,6 +150,19 @@ describe('runExtraction', () => {
     expect(logs).toHaveLength(0)
   })
 
+  it('non-2xx response logs nothing and rejects', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve('Unauthorized'),
+    }))
+    await expect(
+      runExtraction({ entryId: ENTRY_ID, request: MINIMAL_REQUEST, settings: ANTHROPIC_SETTINGS, database: db })
+    ).rejects.toThrow('401')
+    const logs = await db.getAllFromIndex('apiUsageLogs', 'by-entryId', ENTRY_ID)
+    expect(logs).toHaveLength(0)
+  })
+
   it('exactly one request on failure', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error('network error'))
     vi.stubGlobal('fetch', fetchMock)
@@ -194,5 +207,15 @@ describe('runExtraction', () => {
     ).rejects.toThrow()
     const logs = await db.getAllFromIndex('apiUsageLogs', 'by-entryId', ENTRY_ID)
     expect(logs).toHaveLength(1)
+  })
+})
+
+describe('getProvider', () => {
+  it('throws a clear error for an unknown provider id', () => {
+    expect(() => getProvider('unknown-provider-id')).toThrow(/not implemented/i)
+  })
+
+  it('throws for openai (not yet implemented)', () => {
+    expect(() => getProvider('openai')).toThrow(/not implemented/i)
   })
 })
