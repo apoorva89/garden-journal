@@ -22,6 +22,7 @@ export class AnthropicProvider implements AIProvider {
         'content-type': 'application/json',
         'anthropic-version': ANTHROPIC_VERSION,
         'x-api-key': config.apiKey,
+        'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify(body),
     })
