@@ -42,6 +42,7 @@ git checkout -b feature/<phase>-<slug>
 ## Step 1 — plan-writer (initial draft)
 
 ```bash
+TS=$(date +%Y%m%d-%H%M%S)
 claude -p "$(cat .flow/combined/plan-writer-combined.md)
 
 Task: Write the plan for phase <phase> — <one-line description>." \
@@ -49,7 +50,8 @@ Task: Write the plan for phase <phase> — <one-line description>." \
   --output-format json \
   --permission-mode bypassPermissions \
   --allowedTools "Read,Edit(docs/exec-plans/active/<phase>-<slug>.md),Write(docs/exec-plans/active/<phase>-<slug>.md),Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *)" \
-  > .flow/plan-writer-run.json
+  > .flow/plan-writer-run-${TS}.json
+ln -sf "plan-writer-run-${TS}.json" .flow/plan-writer-run-latest.json
 ```
 
 ---
@@ -57,6 +59,7 @@ Task: Write the plan for phase <phase> — <one-line description>." \
 ## Step 2 — plan-reviewer
 
 ```bash
+TS=$(date +%Y%m%d-%H%M%S)
 claude -p "$(cat .flow/combined/plan-reviewer-combined.md)
 
 Task: Review the plan at docs/exec-plans/active/<phase>-<slug>.md." \
@@ -64,38 +67,93 @@ Task: Review the plan at docs/exec-plans/active/<phase>-<slug>.md." \
   --output-format json \
   --permission-mode bypassPermissions \
   --allowedTools "Read,Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *)" \
-  > .flow/plan-reviewer-run.json
+  > .flow/plan-reviewer-run-${TS}.json
+ln -sf "plan-reviewer-run-${TS}.json" .flow/plan-reviewer-run-latest.json
 ```
 
 Check the outcome:
 
 ```bash
-jq -r '.result' .flow/plan-reviewer-run.json | grep "^PLAN-REVIEW:"
+jq -r '.result' .flow/plan-reviewer-run-latest.json | grep "^PLAN-REVIEW:"
 ```
 
-If output is `PLAN-REVIEW: APPROVED`, proceed to Step 3.5. If `PLAN-REVIEW: ISSUES`, run Step 3.
+If output is `PLAN-REVIEW: APPROVED`, proceed to Step 3.5. If `PLAN-REVIEW: ISSUES`, run Step 2.5.
+
+---
+
+## Step 2.5 — human gate for approval findings (conditional)
+
+Run only if Step 2 returned `PLAN-REVIEW: ISSUES`.
+
+Before running Step 3, read the findings and classify each one:
+
+- **Mechanical fix** — the plan-writer can resolve it without human input (e.g. a missing §1
+  entry, a consistency gap between sections). Pass straight to Step 3.
+- **Approval finding** — the reviewer explicitly asks the human to confirm something (e.g. a
+  scope addition outside the build-plan entry, an invariant change, a stop-and-ask departure).
+  These must be surfaced to the human before the plan-writer can record them in §11.
+
+For each approval finding, ask the human. Once all responses are collected, save them:
+
+```bash
+cat > .flow/human-responses.txt << 'EOF'
+<finding text>
+Human response: <response>
+
+<next finding text, if any>
+Human response: <response>
+EOF
+```
+
+If there are no approval findings, skip writing `.flow/human-responses.txt` and run Step 3 with
+the standard command.
 
 ---
 
 ## Step 3 — plan-writer (address-review loop)
 
-Run only if step 2 ended with `PLAN-REVIEW: ISSUES`.
+Run only if Step 2.5 is complete (see Step 2.5).
+
+If Step 2.5 produced no human responses (only mechanical fixes), use the standard command:
 
 ```bash
+TS=$(date +%Y%m%d-%H%M%S)
 claude -p "$(cat .flow/combined/plan-writer-combined.md)
 
 The plan is at docs/exec-plans/active/<phase>-<slug>.md.
 Address the following review comments:
 
-$(jq -r '.result' .flow/plan-reviewer-run.json)" \
+$(jq -r '.result' .flow/plan-reviewer-run-latest.json)" \
   --model claude-opus-4-8 \
   --output-format json \
   --permission-mode bypassPermissions \
   --allowedTools "Read,Edit(docs/exec-plans/active/<phase>-<slug>.md),Write(docs/exec-plans/active/<phase>-<slug>.md),Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *)" \
-  > .flow/plan-writer-revise-run.json
+  > .flow/plan-writer-revise-run-${TS}.json
+ln -sf "plan-writer-revise-run-${TS}.json" .flow/plan-writer-revise-run-latest.json
 ```
 
-Return to Step 2. Repeat Steps 2–3 until Step 2 ends with `PLAN-REVIEW: APPROVED`.
+If Step 2.5 produced human responses (`.flow/human-responses.txt` exists), append them to the prompt:
+
+```bash
+TS=$(date +%Y%m%d-%H%M%S)
+claude -p "$(cat .flow/combined/plan-writer-combined.md)
+
+The plan is at docs/exec-plans/active/<phase>-<slug>.md.
+Address the following review comments:
+
+$(jq -r '.result' .flow/plan-reviewer-run-latest.json)
+
+Human responses to findings requiring approval:
+$(cat .flow/human-responses.txt)" \
+  --model claude-opus-4-8 \
+  --output-format json \
+  --permission-mode bypassPermissions \
+  --allowedTools "Read,Edit(docs/exec-plans/active/<phase>-<slug>.md),Write(docs/exec-plans/active/<phase>-<slug>.md),Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *)" \
+  > .flow/plan-writer-revise-run-${TS}.json
+ln -sf "plan-writer-revise-run-${TS}.json" .flow/plan-writer-revise-run-latest.json
+```
+
+Return to Step 2. Repeat Steps 2.5–3 until Step 2 ends with `PLAN-REVIEW: APPROVED`.
 
 ---
 
@@ -112,6 +170,7 @@ If §8 is empty, skip to step 4. Otherwise run both passes below.
 ### Pass 1 — create issues and post proposals
 
 ```bash
+TS=$(date +%Y%m%d-%H%M%S)
 claude -p "$(cat .flow/combined/question-resolver-combined.md)
 
 Task: Resolve all open questions in §8 of docs/exec-plans/active/<phase>-<slug>.md." \
@@ -119,7 +178,8 @@ Task: Resolve all open questions in §8 of docs/exec-plans/active/<phase>-<slug>
   --output-format json \
   --permission-mode bypassPermissions \
   --allowedTools "Read,Edit(docs/exec-plans/active/<phase>-<slug>.md),Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *),WebSearch,Bash(gh issue create *),Bash(gh issue view *),Bash(gh issue comment *),Bash(gh issue close *)" \
-  > .flow/question-resolver-pass1-run.json
+  > .flow/question-resolver-pass1-run-${TS}.json
+ln -sf "question-resolver-pass1-run-${TS}.json" .flow/question-resolver-pass1-run-latest.json
 ```
 
 Verify: a GitHub issue is created for each §8 question and its URL is recorded in §8; a proposal
@@ -134,6 +194,7 @@ issue thread.
 ### Pass 2 — write ratified decisions
 
 ```bash
+TS=$(date +%Y%m%d-%H%M%S)
 claude -p "$(cat .flow/combined/question-resolver-combined.md)
 
 Task: Resolve all open questions in §8 of docs/exec-plans/active/<phase>-<slug>.md." \
@@ -141,7 +202,8 @@ Task: Resolve all open questions in §8 of docs/exec-plans/active/<phase>-<slug>
   --output-format json \
   --permission-mode bypassPermissions \
   --allowedTools "Read,Edit(docs/exec-plans/active/<phase>-<slug>.md),Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *),WebSearch,Bash(gh issue create *),Bash(gh issue view *),Bash(gh issue comment *),Bash(gh issue close *)" \
-  > .flow/question-resolver-pass2-run.json
+  > .flow/question-resolver-pass2-run-${TS}.json
+ln -sf "question-resolver-pass2-run-${TS}.json" .flow/question-resolver-pass2-run-latest.json
 ```
 
 Verify: each approved question has its D-N entry appended to §11, is removed from §8, and its
@@ -150,6 +212,7 @@ issue is closed. Marker is `QUESTIONS-RESOLVED: DONE` once §8 is empty.
 If any §7 items are answered by the new decisions, run plan-writer once more to clear §7:
 
 ```bash
+TS=$(date +%Y%m%d-%H%M%S)
 claude -p "$(cat .flow/combined/plan-writer-combined.md)
 
 Task: Clear §7 items now answered by decisions in §11 for docs/exec-plans/active/<phase>-<slug>.md." \
@@ -157,7 +220,8 @@ Task: Clear §7 items now answered by decisions in §11 for docs/exec-plans/acti
   --output-format json \
   --permission-mode bypassPermissions \
   --allowedTools "Read,Edit(docs/exec-plans/active/<phase>-<slug>.md),Write(docs/exec-plans/active/<phase>-<slug>.md),Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *)" \
-  > .flow/plan-writer-clear-s7-run.json
+  > .flow/plan-writer-clear-s7-run-${TS}.json
+ln -sf "plan-writer-clear-s7-run-${TS}.json" .flow/plan-writer-clear-s7-run-latest.json
 ```
 
 ---
@@ -165,6 +229,7 @@ Task: Clear §7 items now answered by decisions in §11 for docs/exec-plans/acti
 ## Step 4 — implementer
 
 ```bash
+TS=$(date +%Y%m%d-%H%M%S)
 claude -p "$(cat .flow/combined/implementer-combined.md)
 
 Task: Implement the approved plan at docs/exec-plans/active/<phase>-<slug>.md." \
@@ -172,7 +237,8 @@ Task: Implement the approved plan at docs/exec-plans/active/<phase>-<slug>.md." 
   --output-format json \
   --permission-mode bypassPermissions \
   --allowedTools "Read,Edit,Write,Bash(git add *),Bash(git commit *),Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *),Bash(npm run lint),Bash(npm run test),Bash(npm run test:e2e),Bash(npm run build),Bash(npx tsc *)" \
-  > .flow/implementer-run.json
+  > .flow/implementer-run-${TS}.json
+ln -sf "implementer-run-${TS}.json" .flow/implementer-run-latest.json
 ```
 
 ---
@@ -180,7 +246,7 @@ Task: Implement the approved plan at docs/exec-plans/active/<phase>-<slug>.md." 
 ## Step 4.5 — Open PR
 
 ```bash
-jq -r '.result' .flow/implementer-run.json | grep -v "^IMPLEMENTER: DONE" > .flow/pr-body.md
+jq -r '.result' .flow/implementer-run-latest.json | grep -v "^IMPLEMENTER: DONE" > .flow/pr-body.md
 git push -u origin $(git branch --show-current)
 export PR_URL=$(gh pr create --title "<phase>: <slug>" --body "$(cat .flow/pr-body.md)")
 export HEAD_SHA=$(git rev-parse HEAD)
@@ -202,6 +268,7 @@ Steps 5 and 6 are independent and can run simultaneously.
 ### Initial run (after step 4.5)
 
 ```bash
+TS=$(date +%Y%m%d-%H%M%S)
 claude -p "$(cat .flow/combined/pr-reviewer-a-combined.md)
 
 Plan: docs/exec-plans/active/<phase>-<slug>.md
@@ -211,17 +278,19 @@ Head SHA: $HEAD_SHA
 Diff:
 $(git diff main...$HEAD_SHA)
 PR body:
-$(jq -r '.result' .flow/implementer-run.json)" \
+$(jq -r '.result' .flow/implementer-run-latest.json)" \
   --model claude-opus-4-8 \
   --output-format json \
   --permission-mode bypassPermissions \
   --allowedTools "Read,Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *)" \
-  > .flow/pr-reviewer-a-run.json
+  > .flow/pr-reviewer-a-run-${TS}.json
+ln -sf "pr-reviewer-a-run-${TS}.json" .flow/pr-reviewer-a-run-latest.json
 ```
 
 ### Re-run (after step 7 fix)
 
 ```bash
+TS=$(date +%Y%m%d-%H%M%S)
 claude -p "$(cat .flow/combined/pr-reviewer-a-combined.md)
 
 Plan: docs/exec-plans/active/<phase>-<slug>.md
@@ -236,13 +305,14 @@ $(cat .flow/fix-report.txt)" \
   --output-format json \
   --permission-mode bypassPermissions \
   --allowedTools "Read,Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *)" \
-  > .flow/pr-reviewer-a-run.json
+  > .flow/pr-reviewer-a-run-${TS}.json
+ln -sf "pr-reviewer-a-run-${TS}.json" .flow/pr-reviewer-a-run-latest.json
 ```
 
 Post the output as a PR comment:
 
 ```bash
-jq -r '.result' .flow/pr-reviewer-a-run.json > .flow/pr-reviewer-a-output.txt
+jq -r '.result' .flow/pr-reviewer-a-run-latest.json > .flow/pr-reviewer-a-output.txt
 gh pr comment $PR_URL --body "$(cat .flow/pr-reviewer-a-output.txt)"
 ```
 
@@ -255,6 +325,7 @@ Steps 5 and 6 are independent and can run simultaneously.
 ### Initial run (after step 4.5)
 
 ```bash
+TS=$(date +%Y%m%d-%H%M%S)
 claude -p "$(cat .flow/combined/pr-reviewer-b-combined.md)
 
 Plan: docs/exec-plans/active/<phase>-<slug>.md
@@ -264,17 +335,19 @@ Head SHA: $HEAD_SHA
 Diff:
 $(git diff main...$HEAD_SHA)
 PR body:
-$(jq -r '.result' .flow/implementer-run.json)" \
+$(jq -r '.result' .flow/implementer-run-latest.json)" \
   --model claude-sonnet-4-6 \
   --output-format json \
   --permission-mode bypassPermissions \
   --allowedTools "Read,Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *)" \
-  > .flow/pr-reviewer-b-run.json
+  > .flow/pr-reviewer-b-run-${TS}.json
+ln -sf "pr-reviewer-b-run-${TS}.json" .flow/pr-reviewer-b-run-latest.json
 ```
 
 ### Re-run (after step 7 fix)
 
 ```bash
+TS=$(date +%Y%m%d-%H%M%S)
 claude -p "$(cat .flow/combined/pr-reviewer-b-combined.md)
 
 Plan: docs/exec-plans/active/<phase>-<slug>.md
@@ -289,13 +362,14 @@ $(cat .flow/fix-report.txt)" \
   --output-format json \
   --permission-mode bypassPermissions \
   --allowedTools "Read,Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *)" \
-  > .flow/pr-reviewer-b-run.json
+  > .flow/pr-reviewer-b-run-${TS}.json
+ln -sf "pr-reviewer-b-run-${TS}.json" .flow/pr-reviewer-b-run-latest.json
 ```
 
 Post the output as a PR comment:
 
 ```bash
-jq -r '.result' .flow/pr-reviewer-b-run.json > .flow/pr-reviewer-b-output.txt
+jq -r '.result' .flow/pr-reviewer-b-run-latest.json > .flow/pr-reviewer-b-output.txt
 gh pr comment $PR_URL --body "$(cat .flow/pr-reviewer-b-output.txt)"
 ```
 
@@ -315,6 +389,7 @@ gh pr view $PR_URL --comments > .flow/pr-comments.txt
 Then run the fix-agent:
 
 ```bash
+TS=$(date +%Y%m%d-%H%M%S)
 claude -p "$(cat .flow/combined/fix-agent-combined.md)
 
 Plan: docs/exec-plans/active/<phase>-<slug>.md
@@ -325,14 +400,15 @@ $(cat .flow/pr-comments.txt)" \
   --output-format json \
   --permission-mode bypassPermissions \
   --allowedTools "Read,Edit,Write,Bash(git add *),Bash(git commit *),Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *),Bash(npm run lint),Bash(npm run test),Bash(npm run test:e2e),Bash(npm run build),Bash(npx tsc *)" \
-  > .flow/fix-agent-run.json
+  > .flow/fix-agent-run-${TS}.json
+ln -sf "fix-agent-run-${TS}.json" .flow/fix-agent-run-latest.json
 ```
 
 Push the new commits and post the fix report as a PR comment:
 
 ```bash
 git push
-jq -r '.result' .flow/fix-agent-run.json > .flow/fix-report.txt
+jq -r '.result' .flow/fix-agent-run-latest.json > .flow/fix-report.txt
 gh pr comment $PR_URL --body "$(cat .flow/fix-report.txt)"
 ```
 
@@ -356,8 +432,8 @@ export HEAD_SHA=$(git rev-parse HEAD)
 Repeat until both reviewers emit `VERDICT: APPROVED`. Confirm with:
 
 ```bash
-jq -r '.result' .flow/pr-reviewer-a-run.json | grep "^VERDICT:"
-jq -r '.result' .flow/pr-reviewer-b-run.json | grep "^VERDICT:"
+jq -r '.result' .flow/pr-reviewer-a-run-latest.json | grep "^VERDICT:"
+jq -r '.result' .flow/pr-reviewer-b-run-latest.json | grep "^VERDICT:"
 ```
 
 If the marker is `FIX-RESULT: NEEDS-HUMAN`, review the unresolved items in the fix report and
@@ -417,6 +493,7 @@ gh pr view $PR_URL --comments > .flow/pr-comments.txt
 Then run the retro-writer:
 
 ```bash
+TS=$(date +%Y%m%d-%H%M%S)
 claude -p "$(cat .flow/combined/retro-writer-combined.md)
 
 Plan: docs/exec-plans/active/<phase>-<slug>.md
@@ -428,7 +505,8 @@ $(cat .flow/pr-comments.txt)" \
   --output-format json \
   --permission-mode bypassPermissions \
   --allowedTools "Read,Edit(docs/exec-plans/active/<phase>-<slug>.md),Write(docs/exec-plans/active/<phase>-<slug>.md),Bash(git diff *),Bash(git log *),Bash(git show *),Bash(git status *)" \
-  > .flow/retro-writer-run.json
+  > .flow/retro-writer-run-${TS}.json
+ln -sf "retro-writer-run-${TS}.json" .flow/retro-writer-run-latest.json
 ```
 
 ---
