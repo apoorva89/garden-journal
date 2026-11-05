@@ -184,4 +184,15 @@ describe('runExtraction', () => {
     const headers = new Headers(init.headers as HeadersInit)
     expect(headers.get('anthropic-dangerous-direct-browser-access')).toBe('true')
   })
+
+  it('200 response without content field logs usage then throws (D-067 on malformed 200)', async () => {
+    // A billed 200 with no content field must still log usage before throwing.
+    const noContentResponse = { usage: WELL_FORMED_RESPONSE.usage }
+    vi.stubGlobal('fetch', makeFetchOk(noContentResponse))
+    await expect(
+      runExtraction({ entryId: ENTRY_ID, request: MINIMAL_REQUEST, settings: ANTHROPIC_SETTINGS, database: db })
+    ).rejects.toThrow()
+    const logs = await db.getAllFromIndex('apiUsageLogs', 'by-entryId', ENTRY_ID)
+    expect(logs).toHaveLength(1)
+  })
 })
