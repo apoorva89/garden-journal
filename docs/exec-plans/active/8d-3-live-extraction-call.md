@@ -85,6 +85,10 @@ Resolving names/labels to database IDs (8d-4) and saving a `PendingExtraction` (
 - `lib/__tests__/extract.test.ts` — new; AC-1 to AC-6, `fetch` stubbed
 - `lib/__tests__/db.test.ts` — add `addApiUsageLog` round-trip
 
+**Integration tests (new)**
+- `e2e-integration/anthropic-live.spec.ts` — AC-8 Playwright integration test; real Anthropic API request; excluded from CI and `npm run test:e2e`
+- `playwright.integration.config.ts` — separate Playwright config for the integration project (`{ name: 'node', use: {} }`); run with `npm run test:integration`
+
 ---
 
 ## 4. Acceptance criteria
@@ -100,7 +104,7 @@ Each criterion is a test case. Write the test first and confirm it fails for the
 | AC-5 | With `fetch` stubbed to reject, `fetch` is called exactly once across the whole `runExtraction` call (no automatic retry). | unit | `lib/__tests__/extract.test.ts` — `runExtraction: exactly one request on failure` |
 | AC-6 | `runExtraction` run against Settings `{ aiProvider: 'anthropic', aiModel: <M>, apiKeys: { anthropic: <K> } }` calls `fetch` with a request whose model field equals `<M>` and whose auth header carries `<K>`; the provider is selected from `settings.aiProvider`. No provider id or model literal appears in `lib/ai/anthropicProvider.ts` or `lib/orchestrator/ai.ts` source as the hard-coded choice. | unit | `lib/__tests__/extract.test.ts` — `runExtraction: provider, model and key come from Settings` |
 | AC-7 | `addApiUsageLog` writes a record to `apiUsageLogs` and returns it with a generated `id`; it can be read back by `id` and listed by the `by-entryId` index. | unit | `lib/__tests__/db.test.ts` — `addApiUsageLog: writes and returns the record` |
-| AC-8 | On the installed home-screen app, one real Sync of a sample text entry with a real Anthropic key returns events and produces exactly one `ApiUsageLog` record. | manual | On-device check (installed app only, §7/§8 of AGENTS.md); listed pending in the PR |
+| AC-8 | With `ANTHROPIC_API_KEY` set in the environment, `runExtraction` against a real Anthropic API request using `claude-haiku-4-5-20251001` returns a non-empty `ExtractedEvent[]` that validates against `ExtractedEventSchema`, and exactly one `ApiUsageLog` exists with `inputTokens > 0`, `outputTokens > 0`, correct `model`, and correct `provider`. | integration | `e2e-integration/anthropic-live.spec.ts` — `live extraction returns valid events and logs ApiUsageLog` (run with `npm run test:integration`; excluded from CI and `npm run test:e2e`; requires `ANTHROPIC_API_KEY` env var; skipped automatically if key is absent) |
 
 ---
 
@@ -173,7 +177,7 @@ None. (Q-1 resolved as D-104; Q-2 resolved as D-105. See §11.)
 - [x] 2026-11-03 prior session: AC-7 test written in `db.test.ts`, failing (reason: `addApiUsageLog` not implemented)
 - [x] 2026-11-03 16:05Z: AC-1..AC-7 passing (123 tests total)
 - [x] 2026-11-03 16:10Z: typecheck clean, build green, lint clean on new/changed source files (pre-existing `react-hooks/rules-of-hooks` false-positives in `lib/db.ts` unchanged); 5 pre-existing e2e failures unchanged
-- [ ] YYYY-MM-DD HH:MMZ: AC-8 (manual, on-device) performed
+- [x] 2026-11-05: AC-8 integration test written (`e2e-integration/anthropic-live.spec.ts`); run with `ANTHROPIC_API_KEY=<key> npm run test:integration`; end-to-end on-device deferred to Sync integration phase per human reviewer blocking verdict
 
 ## 10. Surprises & discoveries
 
