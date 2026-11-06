@@ -34,8 +34,11 @@ export class AnthropicProvider implements AIProvider {
 
     const data = await response.json()
 
-    const toolBlock = ((data.content ?? []) as Array<{ type: string; input?: unknown }>)
-      .find((b) => b.type === 'tool_use')
+    const content = Array.isArray(data.content) ? (data.content as Array<unknown>) : []
+    const toolBlock = content.find(
+      (b): b is { type: string; input?: unknown } =>
+        b != null && typeof b === 'object' && (b as Record<string, unknown>).type === 'tool_use',
+    )
 
     const events: unknown = toolBlock?.input != null
       ? (toolBlock.input as Record<string, unknown>).events
