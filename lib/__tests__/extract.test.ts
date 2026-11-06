@@ -208,6 +208,26 @@ describe('runExtraction', () => {
     const logs = await db.getAllFromIndex('apiUsageLogs', 'by-entryId', ENTRY_ID)
     expect(logs).toHaveLength(1)
   })
+
+  it('content:{} (non-array) logs usage then throws (D-067 on malformed 200)', async () => {
+    const response = { content: {}, usage: WELL_FORMED_RESPONSE.usage }
+    vi.stubGlobal('fetch', makeFetchOk(response))
+    await expect(
+      runExtraction({ entryId: ENTRY_ID, request: MINIMAL_REQUEST, settings: ANTHROPIC_SETTINGS, database: db })
+    ).rejects.toThrow()
+    const logs = await db.getAllFromIndex('apiUsageLogs', 'by-entryId', ENTRY_ID)
+    expect(logs).toHaveLength(1)
+  })
+
+  it('content:[null] (null item in array) logs usage then throws (D-067 on malformed 200)', async () => {
+    const response = { content: [null], usage: WELL_FORMED_RESPONSE.usage }
+    vi.stubGlobal('fetch', makeFetchOk(response))
+    await expect(
+      runExtraction({ entryId: ENTRY_ID, request: MINIMAL_REQUEST, settings: ANTHROPIC_SETTINGS, database: db })
+    ).rejects.toThrow()
+    const logs = await db.getAllFromIndex('apiUsageLogs', 'by-entryId', ENTRY_ID)
+    expect(logs).toHaveLength(1)
+  })
 })
 
 describe('getProvider', () => {
