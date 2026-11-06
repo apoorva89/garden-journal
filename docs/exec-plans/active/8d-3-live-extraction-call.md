@@ -181,10 +181,28 @@ None. (Q-1 resolved as D-104; Q-2 resolved as D-105. See §11.)
 - [x] 2026-11-05: fix `content:{}` / `content:[null]` throw before usage extraction (D-067); repro `888a78d` / fix `bc01a6d`; also fix pre-existing broken `.flow/` symlink causing providerConfig test failure
 - [x] 2026-11-05: integration test quality assertions made informational-only (removed `expect.soft`); fix `fc9f8bc`
 - [x] 2026-11-05: 130 unit tests passing; typecheck clean; e2e 110 passed / 1 pre-existing webkit failure / 5 skipped
+- [x] 2026-11-05: Reviewer A round 1 — 1 blocking (CORS header missing, I-12/D-058); 4 non-blocking (AC-1 assertion weak, non-2xx path untested, `getProvider` throw untested, AC-6 partial coverage). Reviewer B round 1 — 2 non-blocking (`data.content` null guard missing, non-2xx path untested).
+- [x] 2026-11-05 11:08Z: Fix round 1 — CORS header added (repro `0ae17b6`, fix `2a3b78b`); `data.content` null guard added (repro `969c523`, fix `2643618`); AC-1/AC-2/AC-3 test gaps and `getProvider` throw tests addressed (`c64aa42`). CI deploy failure identified: GitHub Pages env protection rule rejects two-segment branch path — requires human action.
+- [x] 2026-11-05: Reviewer A round 2 — APPROVED. Reviewer B round 2 — APPROVED.
+- [x] 2026-11-05: Human blocking verdict (FLOW-VERDICT sha=c64aa42) — AC-8 manual on-device check not feasible (`runExtraction` not yet wired into Sync UI); Playwright integration test requested as substitute.
+- [x] 2026-11-05 12:31Z: Integration test added (`f79c9ae`): `e2e-integration/anthropic-live.spec.ts`, `playwright.integration.config.ts`, `test:integration` script added to `package.json`. Test skips automatically if `ANTHROPIC_API_KEY` absent; excluded from CI.
+- [x] 2026-11-05 13:39Z: Integration test expanded with richer multi-crop entry and informational quality checks via `console.table` (`92891b6`).
+- [x] 2026-11-05: Reviewer A round 3 — APPROVED; non-blocking: §11 missing AC-8 redefinition entry, §4 test-name drift, on-device deferral not durably tracked. Reviewer B round 3 — BLOCKING: `content:{}` / `content:[null]` throw before usage extraction violating D-067; quality assertions with `expect.soft` exceeded AC-8 scope. Non-blocking: exec plan progress stale.
+- [x] 2026-11-05 16:07Z: Fix round 2 — content guard expanded to `Array.isArray` + null-item check (repro `888a78d`, fix `bc01a6d`); `.flow` added to `SKIP_DIRS` in `providerConfig.test.ts` to fix pre-existing broken-symlink failure in D-102 structural scan; quality assertions made informational-only via `console.table` (`fc9f8bc`); exec plan progress updated (`851a04c`). PR body update deferred to human (NEEDS-HUMAN).
+- [x] 2026-11-05 16:18Z: Reviewer A round 3 non-blocking items addressed — §11 entries for AC-8 redefinition and 8d-5 on-device gate added; §4 AC-8 test-name updated to match implemented name (`d83e724`).
+- [x] 2026-11-05: Reviewer B round 4 — BLOCKING: `.flow/smoke-test-commands.md` changes on branch out of scope (not in §3, no §11 approval). Non-blocking: `package.json` and `lib/__tests__/providerConfig.test.ts` not listed in §3.
+- [x] 2026-11-05 16:25Z: Reverted `.flow/smoke-test-commands.md` changes from branch (`6411633`).
+- [x] 2026-11-05: Human APPROVED (FLOW-VERDICT sha=6411633).
+- [x] 2026-11-05: AC-8 integration test run against real Anthropic API (HEAD `6411633`) — 5 events returned, all validate against `ExtractedEventSchema`; 1 `ApiUsageLog` written; 10/11 quality checks PASS (check 10 REVIEW: Roma variety grounded in journal text — not an invented value).
 
 ## 10. Surprises & discoveries
 
 - None yet.
+- 2026-11-05: **CI deploy blocked by two-segment branch name.** The branch `feat/8d-3/live-extraction-call` uses a two-path-segment name. The GitHub Pages env protection rule pattern `feat/*` matches only single-segment paths. The `deploy.yml` workflow's `feat/**` trigger is correct, but the env protection rule is a separate GitHub repository setting unreachable via code. Required human action (update GitHub Pages env → Deployment branches pattern to `feat/**`).
+- 2026-11-05: **Pre-existing broken symlink in `.flow/` crashed the D-102 structural scan.** `.flow/pr-reviewer-b-run-latest.json` was a dangling symlink; `statSync` threw before the extension filter ran. Fixed by adding `.flow` to `SKIP_DIRS` in `lib/__tests__/providerConfig.test.ts` (commit `bc01a6d`). Discovered during fix round 2.
+- 2026-11-05: **D-067 required a second fix round.** The initial `?? []` null guard handled only `null`/`undefined`; a non-array `content` value (`{}`) and a `null` item inside an array both escaped the first fix and threw before usage was logged. Required a second repro/fix cycle (`888a78d`/`bc01a6d`).
+- 2026-11-05: **Integration test quality assertions caused a blocking round.** Using `expect.soft` for model-quality observations in the integration test meant a schema-valid, AC-8-compliant response could still fail the test on nondeterministic extraction quality. The right pattern — `console.table` with no `expect` calls for informational checks, hard assertions only for the AC contract — was not documented and had to be established mid-review.
+- 2026-11-05: **Scope creep in `.flow/smoke-test-commands.md` slipped past three review rounds.** Workflow updates (timestamped output files, `ln -sf` symlinks, new conditional gate section) were committed alongside the feature work but were not in §3 and carried no §11 approval. Caught only in Reviewer B round 4; reverted in `6411633`.
 
 ## 11. Decision log
 
@@ -203,6 +221,39 @@ None. (Q-1 resolved as D-104; Q-2 resolved as D-105. See §11.)
 
 - 2026-11-05: **On-device end-to-end verification deferred to 8d-5.** The build-plan 8d-3 Done-when includes "On the installed app, one real call with a real key… returns events and produces one usage record." This check requires `runExtraction()` to be wired into the Sync workflow and exposed via UI, which is out of scope for 8d-3. The 8d-5 Sync integration phase **must** include this as a gate: on the installed PWA in iOS Safari, one real call with a real key returns validated `ExtractedEvent[]` and writes exactly one `ApiUsageLog`. The Node Playwright integration test (`fake-indexeddb`, no browser) covers the HTTP call, response parse, and usage mapping but does not exercise the installed-PWA/iOS-Safari path (ARCHITECTURE §7/§8). Reason: recording explicitly here so the check is not silently dropped when 8d-5 is planned.
 
+- 2026-11-05: **`.flow` added to `providerConfig.test.ts` SKIP_DIRS to fix broken-symlink crash.** The `.flow` agent-orchestration directory contains a dangling symlink (`pr-reviewer-b-run-latest.json`) that caused `statSync` to throw in the D-102 structural scan before the extension filter ran. Added `.flow` to `SKIP_DIRS` alongside the existing `scripts` exclusion (same basis: neither directory contains shipped app source). Effect: a provider-id or model literal placed in a future `.flow/*.ts` would not be caught. Acceptable because no app source lives under `.flow`. Reason: least-invasive fix that restores green gates without changing scan logic or scope. Alternatives: skip on symlink detection via `lstat` (more surgical but adds complexity for a non-shipped directory) — deferred; scope the skip to broken symlinks only — rejected as more complex with no coverage benefit.
+
+- 2026-11-05: **Smoke-test-commands.md scope expansion reverted; out-of-scope changes may not ride on feature branches.** Workflow improvements to `.flow/smoke-test-commands.md` (timestamped output files, `ln -sf` symlinks, new conditional gate section) were committed on this branch without a §11 scope entry or approval. Reviewer B round 4 flagged this as a scope violation per AGENTS.md ("Stop and ask before any change that departs from the approved exec plan"). Reverted in `6411633`. Cross-phase tooling improvements belong on a dedicated chore branch or must be listed in §3 with explicit §11 approval before committing.
+
 ## 12. Outcomes & retrospective
 
-Filled in at completion.
+### What was delivered
+
+All acceptance criteria met. `AnthropicProvider` makes a single CORS-compatible direct browser call to the Anthropic Messages API, parses the tool-use response, and returns `{ events: unknown; usage: UsageData | null }`. `runExtraction` selects the provider from Settings, calls the provider, writes one `ApiUsageLog` before validation (D-067), validates with `z.array(ExtractedEventSchema).parse(...)`, and returns `ExtractedEvent[]`. `addApiUsageLog` writes to the existing `apiUsageLogs` store and returns the created record (I-11). `lib/sync.ts` compiles cleanly under the new `AIProvider` signature with no behaviour change. Doc updates (`ARCHITECTURE.md` §2 and §5, `DECISIONS.md`) shipped in this PR. AC-8 is covered by a Playwright Node integration test against the real Anthropic API, excluded from CI, with a live-run result captured at HEAD `6411633`.
+
+Deviations from the original plan: AC-8 was redefined from a manual on-device check to a Playwright Node integration test (approved by human, §11). Two files not listed in §3 at plan time — `package.json` (new `test:integration` script) and `lib/__tests__/providerConfig.test.ts` (`.flow` added to `SKIP_DIRS`) — were touched by incidental-but-in-scope work; noted as a §3 documentation gap. The on-device installed-PWA check is deferred to 8d-5 (§11).
+
+### What went well
+
+- **TDD ordering held throughout.** Every defect discovered in review had a test-only repro commit before the source fix. The `test(repro): → fix:` ordering discipline made the fix reports credible and reviewer verification straightforward.
+- **Reviewer A and B caught real D-067 violations early.** The log-before-validate contract was the most load-bearing invariant this phase, and multiple independent eyes found different escape paths (`null`, `{}`, `[null]`). The multi-reviewer structure earned its overhead.
+- **Provider / orchestrator split (I-3) made D-067 trivially enforceable.** Because the provider returns raw data with no DB access, all usage logging and validation is in one seam (`runExtraction`), making the log-before-validate ordering a single, testable concern.
+- **Human blocking verdict on AC-8 produced durable infrastructure.** The integration test harness (`e2e-integration/`, `playwright.integration.config.ts`, `test:integration`) is reusable by later phases. The deferral of the on-device gate to 8d-5 is explicitly tracked (§11) so it won't be silently lost.
+
+### What was harder than expected
+
+- **D-067 required two separate fix rounds.** The first null guard (`?? []`) was insufficient; `content:{}` and `content:[null]` both still threw before usage was logged. The edge-case space for "content that arrives but cannot be iterated" was larger than anticipated. Upfront systematic edge-case enumeration (non-array, array-with-nulls, array-with-non-objects) would have closed this in one round.
+- **Two-segment branch name caused an unexpected CI deploy failure.** The `feat/8d-3/live-extraction-call` name violates the existing `feat/*` GitHub Pages env protection rule. This was not documented in `AGENTS.md` or `deploy.yml` and took a full fix report to diagnose. Prior branches all used single-segment names, so the pattern was invisible.
+- **A pre-existing broken symlink in `.flow/` surfaced mid-fix.** The symlink was not related to this phase's work, but its presence caused the D-102 structural scan to throw. Diagnosing this consumed time in fix round 2 and required adding an exclusion that narrows future scan coverage.
+- **Integration test quality assertions required a rework round.** Using `expect.soft` for model-quality observations looked reasonable but still caused test failure on schema-valid AC-8 responses. The correct pattern for "informational quality observations" in a live-API test (console output only, no assertions) was not documented and had to be established by review finding.
+- **Scope creep in `.flow/smoke-test-commands.md` required a revert round.** Workflow tooling improvements were committed alongside feature work without §11 approval. They passed three review rounds before Reviewer B caught them in round 4.
+
+### Process changes
+
+1. **`AGENTS.md` or `docs/BUILD_PLAN.md`** — Add a note that two-segment branch names (`feat/<phase>/<slug>`) require the GitHub Pages env protection rule pattern to be updated to `feat/**` before the first push. Document the current pattern and where to change it (GitHub repository settings → Environments → `github-pages` → Deployment branches).
+
+2. **`docs/exec-plans/TEMPLATE.md` §3** — Add an instruction reminding plan writers to list every file that may be touched, including `package.json` (for new scripts), test-helper files, and config files, even when their changes are purely incidental to in-scope work. These often go unlisted because they feel like mechanical side effects, but they create §3 documentation gaps caught in review.
+
+3. **Role prompt: fix-agent** — Add a line stating that any file touched outside the §3 file list must be surfaced immediately: either stop and ask for scope approval (and record it in §11), or exclude the file from the commit entirely. The current instructions focus on not altering source outside scope but do not explicitly call out tooling/scratch files.
+
+4. **`docs/exec-plans/TEMPLATE.md` §4 or a note in the integration-test instructions** — Document the pattern for live-API integration tests: AC-contract assertions use hard `expect` calls; qualitative/informational observations use `console.table` or `console.log` with no `expect`. `expect.soft` is not suitable for nondeterministic model-output checks.

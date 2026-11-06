@@ -33,6 +33,11 @@ You may not:
 
 ## How to implement
 
+**Do not ask for confirmation before making changes.** Read the plan, then implement. If you have
+doubts about a specific change, record them in §10 of the plan and continue. Surface all doubts in
+your final message. Never pause mid-run to ask "can I apply this?" or similar — the approved plan
+is your authorisation.
+
 Follow the workflow guide's steps for the implementer role exactly.
 
 **TDD obligation.** Write or update the failing test before writing the source code that makes it

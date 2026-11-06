@@ -63,7 +63,7 @@ The reviewer posts findings as a PR comment, split into blocking and non-blockin
 
 ## Git
 
-- Work on a feature branch. Never commit to `main`. Branch naming: `feature/<phase>-<slug>`.
+- Work on a feature branch. Never commit to `main`. Branch naming: `feat/<phase>-<slug>` — phase and slug joined with a hyphen, never a slash (e.g. `feat/8d-3-live-extraction-call`, not `feat/8d-3/live-extraction-call`).
 - The agent commits, pushes, and opens the PR. The human reviews and merges.
 
 ## Stop and ask before
