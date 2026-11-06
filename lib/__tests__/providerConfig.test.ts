@@ -5,7 +5,7 @@ import { PROVIDERS, getProviderById, getModelsForProvider } from '../ai/provider
 
 const ROOT = join(__dirname, '..', '..')
 const CONFIG_FILE = join(ROOT, 'lib', 'ai', 'providerConfig.ts')
-const SKIP_DIRS = new Set(['node_modules', '.next', 'out', '.claude', '.git', 'public', 'scripts'])
+const SKIP_DIRS = new Set(['node_modules', '.next', 'out', '.claude', '.git', 'public', 'scripts', '.flow'])
 
 function walkSource(dir: string): string[] {
   const results: string[] = []

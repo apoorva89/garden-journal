@@ -30,6 +30,8 @@ Two to four sentences: what this phase delivers and why now. Name the ARCHITECTU
 
 Expected files, grouped by layer (lib/db.ts, lib/, components/, app/, tests/, e2e/). Mark any file in a stop-and-ask area with [STOP-ASK].
 
+List every file that may be touched, including incidental changes: `package.json` (for new scripts), config files (e.g. `playwright.*.config.ts`), and test-helper files. These often go unlisted because the changes feel mechanical, but an unlisted file touched in the PR is a scope violation caught in review.
+
 Note: a new `lib/` module always requires (a) a row in `ARCHITECTURE.md §2` and (b) if it belongs to a named pipeline section in `ARCHITECTURE.md`, a mention there. List those doc updates here.
 
 ## 4. Acceptance criteria

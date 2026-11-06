@@ -640,3 +640,13 @@ export async function getPendingExtractionByEntryId(
 ): Promise<PendingExtraction | undefined> {
   return (await useDb(database)).get('pendingExtractions', entryId)
 }
+
+export async function addApiUsageLog(
+  log: Omit<ApiUsageLog, 'id'>,
+  database?: GardenDB,
+): Promise<ApiUsageLog> {
+  const d = await useDb(database)
+  const record: ApiUsageLog = { ...log, id: nanoid() }
+  await d.put('apiUsageLogs', record)
+  return record
+}
