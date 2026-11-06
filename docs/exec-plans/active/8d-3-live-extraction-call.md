@@ -176,8 +176,11 @@ None. (Q-1 resolved as D-104; Q-2 resolved as D-105. See §11.)
 - [x] 2026-11-03 prior session: AC-1..AC-6 tests written in `extract.test.ts`, failing (reason: `runExtraction`/`AnthropicProvider` not implemented)
 - [x] 2026-11-03 prior session: AC-7 test written in `db.test.ts`, failing (reason: `addApiUsageLog` not implemented)
 - [x] 2026-11-03 16:05Z: AC-1..AC-7 passing (123 tests total)
-- [x] 2026-11-03 16:10Z: typecheck clean, build green, lint clean on new/changed source files (pre-existing `react-hooks/rules-of-hooks` false-positives in `lib/db.ts` unchanged); 5 pre-existing e2e failures unchanged
+- [x] 2026-11-03 16:10Z: typecheck clean, build green, lint has pre-existing `react-hooks/rules-of-hooks` false-positives in `lib/db.ts` (unchanged); 1 pre-existing webkit e2e failure (`navigation.spec.ts`) unchanged
 - [x] 2026-11-05: AC-8 integration test written (`e2e-integration/anthropic-live.spec.ts`); run with `ANTHROPIC_API_KEY=<key> npm run test:integration`; end-to-end on-device deferred to Sync integration phase per human reviewer blocking verdict
+- [x] 2026-11-05: fix `content:{}` / `content:[null]` throw before usage extraction (D-067); repro `888a78d` / fix `bc01a6d`; also fix pre-existing broken `.flow/` symlink causing providerConfig test failure
+- [x] 2026-11-05: integration test quality assertions made informational-only (removed `expect.soft`); fix `fc9f8bc`
+- [x] 2026-11-05: 130 unit tests passing; typecheck clean; e2e 110 passed / 1 pre-existing webkit failure / 5 skipped
 
 ## 10. Surprises & discoveries
 
