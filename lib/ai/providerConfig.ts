@@ -1,3 +1,5 @@
+export const PROVIDER_ID_ANTHROPIC = 'anthropic'
+
 export interface ProviderConfig {
   id: string
   label: string

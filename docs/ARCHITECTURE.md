@@ -35,10 +35,11 @@ The data and logic layer. UI does not appear here.
 | `lib/sync.ts` | Sync orchestrator. Runs the weather and extraction steps for unsynced entries and writes the results through `lib/db.ts`. See §4. |
 | `lib/orchestrator/geocode.ts` | Geocoding client for location search in Settings. Exports `searchLocations`, `reverseGeocode`, and `GeoResult`. |
 | `lib/orchestrator/weather.ts` | Placeholder for future weather network calls (weather sync currently in `lib/weatherSync.ts`). |
-| `lib/orchestrator/ai.ts` | Placeholder for future AI network calls. |
+| `lib/orchestrator/ai.ts` | `runExtraction()` — reads provider config from Settings, calls the provider, logs token usage before validation, validates the response against `ExtractedEventSchema`, and returns `ExtractedEvent[]`. See §5. |
 | `lib/ai/extractionSpec.ts` | One Zod schema for extracted events; the model's tool schema and the TypeScript type are both derived from it. See §5. |
 | `lib/ai/requestBuilder.ts` | Turns a journal entry and its context into a provider-agnostic `ExtractionRequest` (system prompt, user message, tool definition) and a `labelMap` mapping ephemeral problem labels to database IDs. Pure function; no network or database access. See §5. |
-| `lib/ai/provider.ts` | The interface between the app and any AI provider: a single `extract()` method. |
+| `lib/ai/provider.ts` | `AIProvider` interface (`extract(request, config) → RawExtractionResult`), `StubAIProvider`, and `getProvider(providerId)` factory. `RawExtractionResult` carries `events: unknown` (untrusted until validated) and `usage`. |
+| `lib/ai/anthropicProvider.ts` | `AnthropicProvider implements AIProvider`. Sends one forced-tool-call request to the Anthropic Messages API, parses the tool-use block into `events: unknown`, and maps the response usage object into `UsageData`. No DB access, no validation, no retries. |
 | `lib/weatherSync.ts` | Open-Meteo client. Returns weather for a date and location; network errors return `null`. |
 | `lib/resizeImage.ts` | Downscales and re-encodes photos before storage. Used wherever photos are accepted. |
 
@@ -126,6 +127,17 @@ Entry text is untrusted input to the model: a pasted web page or a crafted note 
 ### One schema, three outputs
 
 `lib/ai/extractionSpec.ts` defines `ExtractedEventSchema` once. The tool definition sent to the model, the runtime validator, and the TypeScript type are all derived from it, so they cannot drift apart. Never hand-write a second schema or type for extracted events.
+
+### Provider call and log-before-validate runner
+
+`runExtraction()` in `lib/orchestrator/ai.ts` is the orchestration seam between the sync pipeline and the AI provider. It:
+
+1. Selects the provider implementation with `getProvider(settings.aiProvider)`.
+2. Calls `provider.extract(request, { model, apiKey })`. If the provider throws (transport failure), the error propagates immediately — no usage log is written.
+3. If the provider returns and `usage` is non-null, writes one `ApiUsageLog` to IndexedDB via `addApiUsageLog` **before** validation, so a billed call is never lost (D-067).
+4. Validates `raw.events` against `z.array(ExtractedEventSchema)` and returns the parsed `ExtractedEvent[]`. A validation failure throws after the usage log has already been written.
+
+`AnthropicProvider` does the fetch only: it has no DB access and performs no validation (invariant I-3). The separation mirrors the weather split: `fetchWeatherForDate` is network-only, the orchestrator writes.
 
 ### API keys and provider config
 

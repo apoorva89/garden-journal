@@ -23,6 +23,7 @@ import {
   writeEntryWeather,
   applyNeedsSyncRule,
   getPendingExtractionByEntryId,
+  addApiUsageLog,
 } from '../db'
 import type { PendingExtraction } from '../db'
 
@@ -569,5 +570,33 @@ describe('getPendingExtractionByEntryId', () => {
     const db = await freshDb()
     const result = await getPendingExtractionByEntryId('nonexistent', db)
     expect(result).toBeUndefined()
+  })
+})
+
+// ── addApiUsageLog ────────────────────────────────────────────────────────────
+
+describe('addApiUsageLog', () => {
+  it('writes and returns the record', async () => {
+    const db = await freshDb()
+    const log = await addApiUsageLog(
+      {
+        entryId: 'entry-01',
+        date: '2026-05-01T10:00:00Z',
+        provider: 'anthropic',
+        model: 'claude-sonnet-4-6',
+        inputTokens: 100,
+        outputTokens: 50,
+        rawUsage: { input_tokens: 100, output_tokens: 50, cache_read_input_tokens: 20, cache_creation_input_tokens: 0 },
+      },
+      db,
+    )
+    expect(log.id).toBeTruthy()
+    expect(log.entryId).toBe('entry-01')
+    expect(log.inputTokens).toBe(100)
+    const byId = await db.get('apiUsageLogs', log.id)
+    expect(byId).toEqual(log)
+    const byEntry = await db.getAllFromIndex('apiUsageLogs', 'by-entryId', 'entry-01')
+    expect(byEntry).toHaveLength(1)
+    expect(byEntry[0].id).toBe(log.id)
   })
 })

@@ -85,7 +85,7 @@ async function _runSync({
       } else {
         onProgress?.(entry.id, 'ai', 'running')
         try {
-          await aiProvider.extract(entry.text, [], [])
+          await aiProvider.extract({ system: '', userMessage: entry.text, tool: { name: '', description: '', input_schema: { type: 'object', properties: {}, required: [] } } }, { model: '', apiKey: '' })
           // Reached only if real provider is wired (8d-2+). Stub always throws.
           onProgress?.(entry.id, 'ai', 'review-pending')
         } catch {
