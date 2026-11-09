@@ -20,6 +20,14 @@ describe('resolveExtractedEvents', () => {
   it('general events skip crop resolution', () => {
     expect(resolve([event({ eventType: 'general', matchedRosterName: 'Tomatoes' })])[0].resolvedCropTypeId).toBeNull()
   })
+  it('general events still resolve problem links', () => {
+    const extracted = event({ eventType: 'general', matchedRosterName: 'Tomatoes', linkedProblemRef: 'P1' })
+    const [review] = resolve([extracted], { P1: 'problem-id' })
+    expect(review.resolvedCropTypeId).toBeNull()
+    expect(review.resolvedLinkedProblemId).toBe('problem-id')
+    expect(review.extracted).toEqual(extracted)
+    expect(review.extracted.linkedProblemRef).toBe('P1')
+  })
   it('label resolves to problem id via labelMap; unknown and null resolve to null; no label in resolved fields', () => {
     const reviews = resolve(['P1', 'P2', null, 'toString', '__proto__'].map(linkedProblemRef => event({ linkedProblemRef })), { P1: 'problem-id' })
     expect(reviews.map(review => review.resolvedLinkedProblemId)).toEqual(['problem-id', null, null, null, null])
