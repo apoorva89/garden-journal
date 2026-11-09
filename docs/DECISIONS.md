@@ -987,6 +987,16 @@ Entries written before this log existed have no dates. New entries include a **D
 **Alternatives:** `extract(entryText, roster, openProblems)` builds the request internally — rejected, duplicates 8d-2's responsibility (D-035); logging and validating inside the provider — rejected, breaks I-3.
 **Consequences:** 8d-5 calls `runExtraction` and can read usage from `ApiUsageLog` via `by-entryId` index. Provider implementations added later follow the same thin-network-boundary contract.
 
+### D-108 — Event resolution contract and `EventReview.resolvedDate`
+**Type:** Technical
+**Status:** Current
+**Date:** 2026-11-09
+**Phase:** 8d-4
+**Context:** Validated model output contains names and ephemeral labels, never database IDs (I-15). Date resolution must preserve the original extracted event for evaluation (D-091); the review wrapper previously had no resolved date field.
+**Decision:** `resolveExtractedEvents(events, roster, labelMap, entryDate)` returns one pending review per event, preserving input order and `extracted` unchanged. Each review has a fresh nanoid, no edits, and a null instance ID until 8e-3. Crop resolution uses exact trimmed lowercase comparison (D-062), with the first roster match winning; general events skip crop resolution. Problem resolution uses own label-map keys uniformly across event types (D-063), with unknown names/labels resolving to null. Raw labels remain in `extracted` only, never in resolved fields. The required `EventReview.resolvedDate: string` keeps a valid `YYYY-MM-DD` in the entry's calendar year; null, invalid, and outside-year dates fall back to `entryDate`.
+**Alternatives:** Rewriting `extracted.eventDate` loses the original model output; recomputing at commit duplicates resolution logic. A rolling date window can mismatch the entry-year instance lookup. Passing the entire entry adds unused input.
+**Consequences:** 8e-3 reads the resolved year for instance lookup; 8e-5 uses it for `CropEvent.date`/`year` (D-026). The function performs no network or database access. The embedded stored review shape changes, requiring an on-device database wipe before testing; no store, index, version, or migration changes.
+
 ---
 
 ## Infrastructure & testing
