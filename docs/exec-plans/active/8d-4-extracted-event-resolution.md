@@ -153,6 +153,18 @@ None.
 ---
 
 - [x] 2026-11-09 21:42Z: Full unit suite passes (137 tests); typecheck passes. Targeted lint including `lib/db.ts` reports 47 existing errors (explicit-any / useDb hook naming); no resolver/test errors reported. Full lint, E2E and build blocked by existing worktree copies / sandbox restrictions (see §10).
+- [x] 2026-11-09 23:15Z: `9ae4d6c` committed — `resolveExtractedEvents` implementation, tests, `EventReview.resolvedDate` in `lib/db.ts`, ARCHITECTURE §2/§5, and D-108 in `docs/DECISIONS.md`.
+- [x] 2026-11-09 23:16Z: Reviewer A round 1 — BLOCKING: commit-level TDD evidence absent; lint, E2E, and build not verified locally or in CI. Non-blocking: add general-event problem-link test.
+- [x] 2026-11-09 23:16Z: Reviewer B round 1 — BLOCKING: lint, E2E, and build not verified locally or in CI.
+- [x] 2026-11-09 23:22Z: Fix agent round 1 — general-event `P1` test added, 138 unit tests pass, baseline lint/E2E/build comparison supplied; staging and commit blocked by read-only `.git`. FIX-RESULT: NEEDS-HUMAN.
+- [x] 2026-11-09 23:24Z: `dd00556` committed — general-event problem-link test; §10 updated with baseline verification results.
+- [x] 2026-11-09: Human disposition — §9 failing-run log accepted as sufficient TDD evidence; no separate failing-test commit required. Baseline lint failures (13,414, identical count on `main`) and pre-existing WebKit E2E timeout accepted as not regressions; CI results authoritative for merge. Re-review requested at SHA `dd00556`.
+- [x] 2026-11-09: Human comment — AC-7 mandatory-wipe instruction overly conservative; no `PendingExtraction` exists on-device until 8d-5. Revised: open the installed app after pulling, confirm normal operation; wipe only if `PendingExtraction` was manually inserted via devtools.
+- [x] 2026-11-09 23:31Z: Fix agent round 2 — plan §11 and D-108 updated with revised AC-7 wording; staging and commit blocked by read-only `.git`. FIX-RESULT: NEEDS-HUMAN.
+- [x] 2026-11-09 23:36Z: `2c8e60b` committed — AC-7 wording correction in plan §11 and D-108.
+- [x] 2026-11-09 23:37Z: Reviewer A round 2 — APPROVED. Non-blocking: PR body stale (still prescribes mandatory wipe).
+- [x] 2026-11-09 23:37Z: Reviewer B round 2 — APPROVED. Non-blocking: PR body stale (still instructs DB wipe).
+- [x] 2026-11-09: Human FLOW-VERDICT APPROVED at SHA `2c8e60b447d5fbfff3fdb5bb19a9f3b96e64334a`.
 
 ## 10. Surprises & discoveries
 
@@ -171,6 +183,7 @@ None.
 ---
 
 - 2026-11-09: Blocked: staging and commit fail with `Unable to create .git/index.lock: Operation not permitted`. The environment grants read-only access to `.git`; no commit was created.
+- 2026-11-09 23:31Z: Fix agent round 2 also blocked by read-only `.git`: the same `index.lock` error prevented committing the §11/D-108 documentation update. The environment restriction persisted through both fix cycles; the orchestrator committed `2c8e60b` manually.
 
 ## 11. Decision log
 
@@ -192,9 +205,47 @@ None.
 
 - 2026-11-09: Implementation uses own-property lookup for labels so inherited keys such as `toString` cannot resolve as problem IDs. Rationale: only labels supplied by the call belong to the map. Alternative: direct bracket lookup (rejected because it exposes prototype values).
 - 2026-11-09: Date validation uses a strict format check and UTC round-trip to reject normalized invalid dates without timezone dependence. Alternative: accepting JavaScript date parsing alone (rejected because February 30 normalizes into March). Permanent resolution contract recorded as D-108.
+- 2026-11-09: **Human disposition — TDD sequence evidence.** The §9 log entry "tests written first; Vitest failed because `../ai/eventResolver` did not exist" is accepted as sufficient evidence of the TDD sequence. No separate failing-test commit is required. Reason: read-only `.git` in the Codex environment prevented creating separate commits; the log entry is contemporaneous session evidence.
+- 2026-11-09: **Human disposition — baseline verification.** Pre-existing lint failures (13,414 problems, identical count on `main`) and the pre-existing WebKit E2E timeout are accepted as not regressions introduced by this branch. Build, typecheck, and 138 unit tests pass. CI results remain authoritative for merge.
 
 ---
 
 ## 12. Outcomes & retrospective
 
-Filled in at completion.
+## Delivered
+
+`resolveExtractedEvents(events, roster, labelMap, entryDate)` in `lib/ai/eventResolver.ts` — a pure function turning validated AI extraction output into pending `EventReview` records. Resolves `matchedRosterName` → crop type ID (exact trimmed lowercase; `general` events skip crop resolution), `linkedProblemRef` → problem ID via `labelMap` (own-property lookup; label never reaches resolved fields), `eventDate` → `resolvedDate` clamped to the entry's calendar year, and sets `resolvedInstanceId: null` (deferred to 8e-3). `lib/db.ts` gains `EventReview.resolvedDate: string`. `docs/ARCHITECTURE.md` and `docs/DECISIONS.md` (D-108) updated. 138 unit tests pass across 10 files. Manual AC-7 (on-device check) remains pending.
+
+## What differed from the plan
+
+AC-7's mandatory-wipe language was overly conservative: no `PendingExtraction` exists on a current device until 8d-5. Clarified post-review: open the installed app and confirm normal operation; wipe only if a `PendingExtraction` was manually inserted via devtools. The approved §§1–8 wording is retained as the historical contract; the correction is recorded in §11 and D-108.
+
+## What went well
+
+- Pure function design made implementation, testing, and review clean. No network calls and no DB access meant every acceptance criterion could be an isolated unit test.
+- Pre-approved decisions (D-1–D-5) answered every implementation question before work started; zero unplanned decisions were needed during coding.
+- Unit tests were comprehensive and all passed on the first implementation attempt; no source rework was required.
+- Human disposition on TDD evidence and baseline verification was fast and pragmatic, unblocking the review quickly.
+
+## What was harder than expected
+
+- The Codex sandbox blocked the entire verification chain: read-only `.git` prevented all staging and commits; no-port-binding prevented `npm run build` and `npm run test:e2e`; untracked `.claude/worktrees/` copies inflated lint counts to 13,414. This affected both the initial implementation and two subsequent fix rounds.
+- Commit-level TDD evidence (a separate failing-test commit) could not be supplied because `.git` was read-only in the session that wrote the tests, requiring human disposition.
+- Both fix rounds ended NEEDS-HUMAN because the fix agent could not commit; the orchestrator had to commit `2c8e60b` manually.
+- AC-7's mandatory-wipe instruction created a documentation fix cycle after both reviewers had already issued APPROVED verdicts.
+
+## Process changes
+
+- **Codex allowlist design** (primary fix; covers all git-write and port-binding failures across orchestration breaks [step 4] and [step 7]): Implementer-STOPPED, implementer not committing, and fix-agent not committing share a single root cause — the Codex sandbox does not grant git writes or port binding to writer roles. Design the Codex allowlist to give the implementer and fix-agent roles permission to run `git add`, `git commit`, and bind a port for `npm run build` and `npm run test:e2e`, without widening permissions for read-only roles (plan-writer, plan-reviewer, reviewers, retro-writer). The implementer and fix-agent prompt mitigations below are interim only; once the allowlist grants these capabilities they can be removed.
+
+- **Implementer prompt** (`.flow/prompts/implementer.md`) — _interim until Codex allowlist is fixed_ (orchestration break [step 4] PROCESS IMPROVEMENT): Add a section distinguishing environment limitations (read-only `.git`, no port binding) from real implementation blockers. Instruct the implementer to emit `IMPLEMENTER: DONE` when implementation and unit tests are complete, and to record environment limitations in §10 rather than emitting `IMPLEMENTER: STOPPED`. Remove this guidance once the allowlist grants git writes and port binding to this role.
+
+- **Fix-agent prompt** (`.flow/prompts/fix-agent.md`) — _interim until Codex allowlist is fixed_ (orchestration break [step 7]): When staging or committing fails with an `index.lock` or permissions error, instruct the fix-agent to record the intended commit content in the fix report and emit `FIX-RESULT: NEEDS-HUMAN (git-blocked)` rather than retrying. Remove this guidance once the allowlist grants git writes to this role.
+
+- **Smoke-test commands file**, step 7 and step 4.5 — PR body update mechanism (orchestration break [step 7]): The fix-agent prompt prohibits `gh` commands, so the PR body is never updated after the initial `gh pr create` at step 4.5. Add a step between step 7 and step 8 for the orchestrator to update the PR body via `gh pr edit` after all fix rounds complete and both reviewers have approved, covering any scope or manual-check changes that surfaced during the fix cycle.
+
+- **Smoke-test commands file**, step 3.5 — open-question gate (orchestration break [step 3.5] PROCESS IMPROVEMENT): The step 3.5 check greps §8 for `(Issue:` to find unresolved questions, but plan-writers sometimes self-resolve questions and mark them "Not expected to become an Issue," leaving §8 non-empty without the tag — which silently bypasses the gate. Add a second check after the `(Issue:` grep: if §8 contains any non-empty content not bearing the `(Issue:` tag, surface it to the human before deciding to skip step 3.5.
+
+- **Smoke-test commands file**, step 7.5 — verdict format (orchestration break [step 7.5] PROCESS IMPROVEMENT): The step 7.5 verification grep expects `FLOW-VERDICT reviewer=a/b sha=... verdict=APPROVED`, but pr-reviewer prompts emit `VERDICT: APPROVED`. The three-comment SHA check can never pass as designed. Either update step 7.5 to match what the reviewer prompts actually emit, or update both reviewer prompts to prefix their verdict with `FLOW-VERDICT reviewer=<a|b> sha=<HEAD>` so the grep is reliable.
+
+- **Retro-writer prompt** (`.flow/prompts/retro-writer.md`): Add "orchestration breaks log" to the required-reading list (step 4 or 5), and add an instruction in the §12 writing section to systematically process every `PROCESS IMPROVEMENT` entry in that log into a process change item naming the specific document to change and the proposed edit.
