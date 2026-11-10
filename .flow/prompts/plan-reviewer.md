@@ -76,9 +76,9 @@ missing; the plan-writer will decide how to address it.
 Your last non-empty line must be exactly one of:
 
 ```
-PLAN-REVIEW: APPROVED
+PLAN-REVIEW: CLEAN
 PLAN-REVIEW: ISSUES
 ```
 
-Use `PLAN-REVIEW: APPROVED` only if the numbered list contains zero findings. Use
+Use `PLAN-REVIEW: CLEAN` only if the numbered list contains zero findings. Use
 `PLAN-REVIEW: ISSUES` if there is one or more finding.

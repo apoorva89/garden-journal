@@ -38,6 +38,7 @@ The data and logic layer. UI does not appear here.
 | `lib/orchestrator/ai.ts` | `runExtraction()` — reads provider config from Settings, calls the provider, logs token usage before validation, validates the response against `ExtractedEventSchema`, and returns `ExtractedEvent[]`. See §5. |
 | `lib/ai/extractionSpec.ts` | One Zod schema for extracted events; the model's tool schema and the TypeScript type are both derived from it. See §5. |
 | `lib/ai/requestBuilder.ts` | Turns a journal entry and its context into a provider-agnostic `ExtractionRequest` (system prompt, user message, tool definition) and a `labelMap` mapping ephemeral problem labels to database IDs. Pure function; no network or database access. See §5. |
+| `lib/ai/eventResolver.ts` | Resolves validated events into pending reviews using roster names, problem labels, and the entry year; no database or network access. See §5. |
 | `lib/ai/provider.ts` | `AIProvider` interface (`extract(request, config) → RawExtractionResult`), `StubAIProvider`, and `getProvider(providerId)` factory. `RawExtractionResult` carries `events: unknown` (untrusted until validated) and `usage`. |
 | `lib/ai/anthropicProvider.ts` | `AnthropicProvider implements AIProvider`. Sends one forced-tool-call request to the Anthropic Messages API, parses the tool-use block into `events: unknown`, and maps the response usage object into `UsageData`. No DB access, no validation, no retries. |
 | `lib/weatherSync.ts` | Open-Meteo client. Returns weather for a date and location; network errors return `null`. |
@@ -123,6 +124,10 @@ Entry text is untrusted input to the model: a pasted web page or a crafted note 
 ### Request building
 
 `lib/ai/requestBuilder.ts` contains `buildExtractionRequest()`, a pure function that takes a `BuildExtractionInput` (entry text, entry date, next-season note, crop roster, open problems) and returns a provider-agnostic `ExtractionRequest` plus a `labelMap`. `openProblems` is typed as `OpenProblemInput[]` — each element is a `CropEvent` augmented with a resolved `cropName` string; the caller (8d-5) looks up the name before calling the builder. Each open problem appears in the prompt as `P1 (crop name, date): excerpt` (D-063). The `ExtractionRequest` holds the system prompt, user message, and tool definition; wire-format translation to a specific provider's API shape is left to the provider layer (8d-3). The `labelMap` maps ephemeral labels (`P1`, `P2`, …) to database IDs so the event resolver (8d-4) can link model-returned labels back to real records without the model ever seeing a database ID (D-103).
+
+### Event resolution
+
+`resolveExtractedEvents(events, roster, labelMap, entryDate)` in `lib/ai/eventResolver.ts` returns one pending `EventReview` per validated event in input order, preserving `extracted` unmodified. Crop names match exactly after trimming and lowercasing (first roster match wins); general events skip crop resolution. Problem references resolve only through own keys of the call's label map, including for general events. Unknown names and labels resolve to null. Each review gets a fresh ID, a null instance ID, and no edits. The required `EventReview.resolvedDate` keeps a valid `YYYY-MM-DD` in the entry's calendar year and otherwise falls back to the entry date. 8e-3 consumes its year for instance resolution; 8e-5 uses it for the committed event date/year (D-108). This function writes nothing; the raw label remains only in the preserved extraction audit data.
 
 ### One schema, three outputs
 

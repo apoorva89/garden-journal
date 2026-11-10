@@ -104,6 +104,7 @@ export interface EventReview {
   resolvedCropTypeId: string | null
   resolvedInstanceId: string | null
   resolvedLinkedProblemId: string | null
+  resolvedDate: string
   edits?: Partial<ExtractedEvent>
 }
 

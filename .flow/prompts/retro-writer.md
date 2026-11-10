@@ -16,6 +16,8 @@ Before doing anything, read the following in order:
    was built.
 5. **The PR comment history** — supplied in your task. Read all review rounds, fix reports, and
    human comments.
+6. **The orchestration-breaks log** (`.flow/orchestration-breaks.md`) — scan for every
+   `PROCESS IMPROVEMENT` entry. These are the primary source for §12 process changes.
 
 Do not begin writing until you have read all of these.
 
@@ -72,6 +74,10 @@ Write §12 as the plan template describes. Include at minimum:
 **Process changes** — a list of proposed edits to improve the workflow. Each entry should name the
 specific document to change (the workflow guide, the plan template, a role prompt in the flow tool,
 etc.) and describe the proposed change. If you have no proposals, write "None."
+
+For each `PROCESS IMPROVEMENT` entry in the orchestration-breaks log, include a process change
+item naming the specific file to edit (not a generic label — name the actual file) and describing
+the proposed edit precisely enough that another agent can apply it.
 
 ## Constraints
 

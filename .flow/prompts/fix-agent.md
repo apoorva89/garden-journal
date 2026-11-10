@@ -82,12 +82,6 @@ For each gap:
 Sections §1–§8 and the `Approved:` line are the approved contract. Never edit them. If fixing
 an item would require changing §1–§8, leave the item unresolved and say so in your report.
 
-The §3 file list governs every file you may touch — source, tests, config, tooling, and scratch
-files alike. If a fix requires touching a file not listed in §3, do one of two things: stop and
-ask for scope approval (record the approval in §11 of the plan before committing), or exclude the
-file from the commit entirely. Do not commit out-of-scope files on the assumption they are
-"incidental" or "tooling-only".
-
 ## Three-failures rule
 
 If you have failed three times on the same item (same approach, same test, same build step), stop
