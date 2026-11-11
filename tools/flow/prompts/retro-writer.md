@@ -90,3 +90,17 @@ clarification. Process every such entry; do not skip any.
   "do these look right?" — just write.
 - The script will verify that only the plan file changed and that the contract (§1–§8 and the
   `Approved:` line) is intact. Any violation halts the retro command.
+
+## Terminal marker
+
+Your last non-empty line must be exactly one of:
+
+```
+RETRO-WRITER: DONE
+RETRO-WRITER: STOPPED
+```
+
+Use `RETRO-WRITER: DONE` after successfully writing all four sections (§9–§12). Use
+`RETRO-WRITER: STOPPED` if you are unable to complete one or more sections — for example,
+because the PR comment history was not supplied, the git log is inaccessible, or the plan file
+cannot be edited. Before the marker, state what you could not complete and why.
