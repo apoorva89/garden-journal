@@ -112,4 +112,4 @@ Decisions made during implementation, with date, decision, reason, and alternati
 
 ## 12. Outcomes & retrospective
 
-Filled in at completion: what was delivered, what differed from the plan and why, and any follow-up Issues created. The plan moves to docs/exec-plans/completed/ after merge.
+Filled in at completion by the retro-writer: what was delivered, what differed from the plan and why, any follow-up Issues created, and a workflow evidence subsection (reviewer findings, human decisions, pre-merge manual testing, verification coverage, workflow friction, improvements and follow-through, and feature outcomes). The plan moves to docs/exec-plans/completed/ after merge.

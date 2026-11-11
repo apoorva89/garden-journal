@@ -488,10 +488,11 @@ completes, re-run Steps 5 and 6 before requesting another human verdict.
 
 ## Step 8 — retro-writer
 
-Fetch the full PR comment thread first:
+Fetch the full PR comment thread and CI check results first:
 
 ```bash
 gh pr view $PR_URL --comments > .flow/pr-comments.txt
+gh pr checks $PR_URL > .flow/ci-results.txt 2>/dev/null || echo "(not available)" > .flow/ci-results.txt
 ```
 
 Then run the retro-writer:
@@ -506,7 +507,10 @@ PR comment history:
 $(cat .flow/pr-comments.txt)
 
 Orchestration breaks:
-$(cat .flow/orchestration-breaks.md 2>/dev/null || echo 'None recorded.')"
+$(cat .flow/orchestration-breaks.md 2>/dev/null || echo 'None recorded.')
+
+CI check results:
+$(cat .flow/ci-results.txt)"
 ```
 
 ---
