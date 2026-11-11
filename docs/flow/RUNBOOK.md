@@ -190,14 +190,14 @@ Check the outcome:
 jq -r '.result' .flow/question-resolver-pass1-run-latest.json | grep "^QUESTIONS-RESOLVED:"
 ```
 
-Expected value: `QUESTIONS-RESOLVED: NEEDS-HUMAN` (proposals posted, awaiting human review).
-If `QUESTIONS-RESOLVED: DONE`, §8 was already empty — skip to Step 4.
-If neither value appears, log an orchestration break and stop.
-
-Also verify manually: a GitHub issue is created for each §8 question and its URL is recorded in
-§8; a proposal comment is posted on each issue; §11 is not yet modified.
+If `QUESTIONS-RESOLVED: NEEDS-HUMAN`, the agent has posted its proposals and is waiting for
+human input — proceed to the Human Gate below. If `QUESTIONS-RESOLVED: DONE`, §8 was already
+empty — skip to Step 4. If neither value appears, log an orchestration break and stop.
 
 ### Human gate
+
+Before reviewing the issues, verify: a GitHub issue is created for each §8 question and its URL
+is recorded in §8; a proposal comment is posted on each issue; §11 is not yet modified.
 
 Review each GitHub issue comment and approve, modify, or reject the proposal directly in the
 issue thread.
@@ -224,7 +224,8 @@ log an orchestration break and stop.
 Also verify manually: each approved question has its D-N entry appended to §11, is removed from
 §8, and its issue is closed.
 
-If any §7 items are answered by the new decisions, run plan-writer once more to clear §7:
+If the question-resolver's output notes that §7 items are now answered by decisions in §11,
+run plan-writer once more to clear §7:
 
 ```bash
 node scripts/flow/run.mjs --provider "${FLOW_PROVIDER:-claude}" \
@@ -257,9 +258,9 @@ Check the implementer outcome before opening a PR:
 jq -r '.result' .flow/implementer-run-latest.json | grep "^IMPLEMENTER:"
 ```
 
-If `IMPLEMENTER: STOPPED`, do not proceed — the implementer halted before completion. Address the
-blocker in the report before continuing. If `IMPLEMENTER: DONE`, proceed. If neither value
-appears, log an orchestration break and stop.
+If `IMPLEMENTER: STOPPED`, do not proceed — stop and ask the human to review the blocker
+described in the report. If `IMPLEMENTER: DONE`, proceed. If neither value appears, log an
+orchestration break and stop.
 
 ```bash
 jq -r '.result' .flow/implementer-run-latest.json | grep -v "^IMPLEMENTER: DONE" > .flow/pr-body.md
