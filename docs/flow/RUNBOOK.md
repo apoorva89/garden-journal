@@ -564,8 +564,8 @@ Move the plan to the completed plans directory, append a run log entry, commit, 
 
 ```bash
 git mv docs/exec-plans/active/<phase>-<slug>.md docs/exec-plans/completed/<phase>-<slug>.md
-printf '| %s | %s | %s |\n' \
-  "$(date -u +%Y-%m-%d)" "<phase>-<slug>" "${FLOW_PROVIDER:-claude}" >> docs/flow/runs-log.md
+printf '| %s | %s |\n' \
+  "$(date -u +%Y-%m-%d)" "<phase>-<slug>" >> docs/flow/runs-log.md
 git add docs/exec-plans/completed/<phase>-<slug>.md docs/flow/runs-log.md
 git commit -m "docs(plan): retrospective"
 git push
