@@ -217,12 +217,10 @@ Check the outcome:
 jq -r '.result' .flow/question-resolver-pass2-run-latest.json | grep "^QUESTIONS-RESOLVED:"
 ```
 
-If `QUESTIONS-RESOLVED: DONE`, §8 is empty — proceed. If `QUESTIONS-RESOLVED: NEEDS-HUMAN`,
+If `QUESTIONS-RESOLVED: DONE`, the question-resolver has written every ratified decision to §11,
+removed the questions from §8, and closed their issues — proceed. If `QUESTIONS-RESOLVED: NEEDS-HUMAN`,
 repeat Pass 2 after the human has responded on the remaining issues. If neither value appears,
 log an orchestration break and stop.
-
-Also verify manually: each approved question has its D-N entry appended to §11, is removed from
-§8, and its issue is closed.
 
 If the question-resolver's output notes that §7 items are now answered by decisions in §11,
 run plan-writer once more to clear §7:
