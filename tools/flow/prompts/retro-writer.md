@@ -19,6 +19,9 @@ Before doing anything, read the following in order:
    this before the PR comment history so you know what to look for.
 6. **The PR comment history** — supplied in your task. Read all review rounds, fix reports, and
    human comments.
+7. **CI check results** — if supplied in your task as a `CI check results:` block, read them and
+   note which gates passed, failed, skipped, or were blocked. If not supplied, record as not
+   available.
 
 Do not begin writing until you have read all of these.
 
@@ -80,6 +83,49 @@ For every `PROCESS IMPROVEMENT` entry in the orchestration-breaks log, include a
 item naming the specific file to edit (not a generic label — name the actual file path) and
 describing the proposed edit precisely enough that another agent can apply it without further
 clarification. Process every such entry; do not skip any.
+
+### Workflow evidence
+
+After all other §12 subsections, add a `### Workflow evidence` subsection. Use compact bullets.
+Reference existing artifacts (PR comment URLs, commit SHAs, CI results, §9/§10/§11 entry
+dates) rather than re-stating their content. Write "None documented" for any heading with no
+grounded evidence. Do not fabricate findings, links, counts, severity, or outcomes.
+
+Where confidence matters, label inline: **VERIFIED** (directly cited artifact), **INFERRED**
+(reasonable interpretation, no direct statement), or **UNKNOWN** (absence is itself notable).
+Omit the label when the claim is unambiguously factual and cited.
+
+**Reviewer findings** — One bullet per distinct issue. Same issue raised by multiple reviewers
+or across rounds = one bullet; note later citations as context, not additional issues. Fields:
+first detector (reviewer A / B / both), severity (blocking / non-blocking), resolution
+(fixed / deferred / discarded), evidence link (PR comment URL or timestamp).
+
+**Human decisions** — One bullet per decision made at Steps 6.5 or 7.5 (overrides,
+escalations, architectural choices, scope clarifications). Fields: decision summary, rationale,
+outcome, source (PR comment URL or §11 entry date).
+
+**Pre-merge manual testing** — One bullet per manual AC checked before merge. Fields: AC ID,
+outcome (passed / deferred / issue found), any finding missed by earlier stages. Manual
+testing is always pre-merge; do not record post-merge observations here.
+
+**Verification coverage** — One bullet per check gate (unit tests, e2e, typecheck, lint,
+build, integration). Fields: gate name, result (passed / failed / skipped / blocked), reason
+if not passed. Add one bullet for any gap accepted at merge.
+
+**Workflow friction** — One bullet per event: failed run, unrecognised marker, repeated
+review/fix round beyond the first, or tooling failure. Fields: event type, impact, source
+(orchestration-break entry or fix report timestamp).
+
+**Improvements and follow-through** — One bullet per item. Fields: problem, proposed change
+(cite the §12 "Process changes" entry or orchestration-break PROCESS IMPROVEMENT entry by
+label — do not re-state the full text), status (proposed / applied / validated), and
+subsequent-run evidence if the improvement has been exercised in a later phase. Items proposed
+this phase are "proposed"; the retro-reviewer session determines application.
+
+**Feature outcomes** — Two to four bullets: (1) what shipped and evidence (commit SHA or §9
+entry); (2) any significant technical choice made during the phase (§11 entry); (3)
+verification summary (test count, CI result, integration-test reference); (4) deferred manual
+checks and where they are tracked.
 
 ## Constraints
 
