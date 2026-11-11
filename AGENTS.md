@@ -16,6 +16,7 @@ This file is a map. Read the documents it points to before changing code.
 - `docs/DECISIONS.md`: settled decisions (D-###) with rationale. Do not reverse a decision without asking.
 - `docs/BUILD_PLAN.md`: canonical build plan. Current phase: 8d-1.
 - `docs/exec-plans/active/`: the exec plan for the phase in progress.
+- `docs/flow/RUNBOOK.md`: workflow runbook — step-by-step commands for running a phase with the agent pipeline.
 
 ## Commands
 
