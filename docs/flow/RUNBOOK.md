@@ -655,12 +655,14 @@ git push
 
 ## Step 9.5 — clean up run artifacts
 
-Remove the per-phase run files and generated prompts that accumulated in `.flow/` during this
-session:
+Remove temporary working files that accumulated in `.flow/` during this session:
 
 ```bash
-rm -f .flow/*-run-*.json .flow/*-run-latest.json
-rm -f .flow/logs/*.log 2>/dev/null || true
+rm -f .flow/pr-body.md .flow/pr-body-current.md \
+       .flow/pr-comments.txt .flow/fix-report.txt \
+       .flow/pr-reviewer-a-output.txt .flow/pr-reviewer-b-output.txt
 ```
 
-These files are untracked and not committed. Once the PR is merged they serve no purpose.
+Timestamped run artifacts (`.flow/*-run-*.json`, `.flow/logs/`) are **kept** for retrospectives.
+They are excluded from Git by `.gitignore`. The `*-run-latest.json` symlinks remain and continue
+to point to the most recent successful run for each role.

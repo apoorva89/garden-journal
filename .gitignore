@@ -44,8 +44,11 @@ next-env.d.ts
 
 # flow runtime outputs
 .flow/combined/
-.flow/*-run.json
+.flow/logs/
+.flow/*-run-*.json
+.flow/*-run-latest.json
 .flow/pr-body.md
+.flow/pr-body-current.md
 .flow/pr-comments.txt
 .flow/fix-report.txt
 .flow/pr-reviewer-a-output.txt

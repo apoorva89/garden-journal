@@ -6,7 +6,7 @@ import {
 import {
   mkdir, mkdtemp, open, readFile, writeFile,
 } from 'node:fs/promises';
-import { basename, join, resolve } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { normalizeOutput } from './normalize.mjs';
@@ -17,6 +17,17 @@ function safeName(value, field) {
     throw new TypeError(`${field} must contain lowercase letters, digits, or hyphens`);
   }
   return value;
+}
+
+function extractModel(command) {
+  const idx = command.indexOf('--model');
+  return idx !== -1 && idx + 1 < command.length ? command[idx + 1] : null;
+}
+
+function extractPhase(plan) {
+  if (!plan) return null;
+  const match = /^(\w+-\d+)-/.exec(basename(plan, '.md'));
+  return match ? match[1] : null;
 }
 
 export async function runAgent(options, dependencies = {}) {
@@ -57,9 +68,13 @@ export async function runAgent(options, dependencies = {}) {
     final: join(logDirectory, 'final.txt'),
   };
   const diagnostic = join(logDirectory, 'failure.json');
+  const model = extractModel(command);
+  const phase = extractPhase(options.plan);
+  const relLogDir = relative(workingRoot, logDirectory);
   let processExitCode = null;
   let signal = null;
   let exitCode = 1;
+  let endedAt = null;
 
   try {
     const combined = await readFile(
@@ -93,6 +108,7 @@ export async function runAgent(options, dependencies = {}) {
         child.stdin.end(prompt);
       });
     } finally {
+      endedAt = now().toISOString();
       await stdout.close();
       if (stderr) await stderr.close();
     }
@@ -110,7 +126,8 @@ export async function runAgent(options, dependencies = {}) {
       provider === 'claude' ? logs.stdout : logs.final, 'utf8',
     );
     const envelope = normalizeOutput({
-      provider, role, timestamp, exitCode: processExitCode, output,
+      provider, role, timestamp, endedAt, exitCode: processExitCode, output,
+      runId: stem, phase, model, logDirectory: relLogDir,
     });
     // Synchronous publication prevents in-process interleaving. Renaming
     // a completed symlink is atomic for readers and other runner processes.
@@ -123,8 +140,9 @@ export async function runAgent(options, dependencies = {}) {
       summary: `Completed ${role} (${provider}): ${artifact}; logs: ${logDirectory}`,
     };
   } catch (error) {
+    endedAt = endedAt ?? now().toISOString();
     await writeFile(diagnostic, `${JSON.stringify({
-      provider, role, timestamp,
+      provider, role, phase, model, timestamp, ended_at: endedAt,
       process_exit_code: processExitCode,
       signal, error: error.message, logs,
     }, null, 2)}\n`, { flag: 'wx' });
