@@ -66,10 +66,11 @@ export function normalizeOutput({
   }
   requireText(result, 'result');
 
-  const wallMs =
-    endedAt !== null && validIso(endedAt)
-      ? Date.parse(endedAt) - Date.parse(timestamp)
-      : null;
+  let wallMs = null;
+  if (endedAt !== null && validIso(endedAt)) {
+    const computed = Date.parse(endedAt) - Date.parse(timestamp);
+    wallMs = computed >= 0 ? computed : null;
+  }
 
   return {
     schema_version: 2,
@@ -82,9 +83,9 @@ export function normalizeOutput({
     ended_at: endedAt ?? null,
     wall_ms: wallMs,
     exit_code: exitCode,
-    ...(tokenUsage !== null && { token_usage: tokenUsage }),
-    ...(costUsd !== null && { cost_usd: costUsd }),
-    ...(providerDurationMs !== null && { provider_duration_ms: providerDurationMs }),
+    token_usage: tokenUsage,
+    cost_usd: costUsd,
+    provider_duration_ms: providerDurationMs,
     log_directory: logDirectory ?? null,
     result,
   };

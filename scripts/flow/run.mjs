@@ -26,8 +26,7 @@ function extractModel(command) {
 
 function extractPhase(plan) {
   if (!plan) return null;
-  const name = plan.split('/').pop().replace(/\.md$/, '');
-  const match = /^(\w+-\d+)-/.exec(name);
+  const match = /^(\w+-\d+)-/.exec(basename(plan, '.md'));
   return match ? match[1] : null;
 }
 
