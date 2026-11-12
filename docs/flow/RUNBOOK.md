@@ -87,6 +87,15 @@ node scripts/flow/run.mjs --provider "${FLOW_PROVIDER:-claude}" \
   --task "Task: Write the plan for phase <phase> — <one-line description>."
 ```
 
+Check the outcome:
+
+```bash
+jq -r '.result' .flow/plan-writer-run-latest.json | grep "^PLAN-WRITER:"
+```
+
+If `PLAN-WRITER: DONE`, proceed to Step 2. If `PLAN-WRITER: NEEDS-HUMAN`, stop and address the
+stated blocker before continuing. If neither value appears, log an orchestration break and stop.
+
 ---
 
 
@@ -105,7 +114,8 @@ Check the outcome:
 jq -r '.result' .flow/plan-reviewer-run-latest.json | grep "^PLAN-REVIEW:"
 ```
 
-If output is `PLAN-REVIEW: APPROVED`, proceed to Step 3.5. If `PLAN-REVIEW: ISSUES`, run Step 3.
+If output is `PLAN-REVIEW: CLEAN`, proceed to Step 3.5. If `PLAN-REVIEW: ISSUES`, run Step 3.
+If the output matches neither value, log an orchestration break and stop — do not proceed.
 
 ---
 
@@ -125,7 +135,17 @@ Address the following review comments:
 $(jq -r '.result' .flow/plan-reviewer-run-latest.json)"
 ```
 
-Return to Step 2. Repeat Steps 2–3 until Step 2 ends with `PLAN-REVIEW: APPROVED`.
+Check the outcome:
+
+```bash
+jq -r '.result' .flow/plan-writer-revise-run-latest.json | grep "^PLAN-WRITER:"
+```
+
+If `PLAN-WRITER: DONE`, return to Step 2. If `PLAN-WRITER: NEEDS-HUMAN`, stop and address the
+stated blocker before returning to Step 2. If neither value appears, log an orchestration break
+and stop.
+
+Return to Step 2. Repeat Steps 2–3 until Step 2 ends with `PLAN-REVIEW: CLEAN`.
 
 ---
 
@@ -133,7 +153,9 @@ Return to Step 2. Repeat Steps 2–3 until Step 2 ends with `PLAN-REVIEW: APPROV
 
 ## Step 3.5 — question-resolver (conditional — skip if §8 is empty)
 
-Check whether §8 has any open questions first.
+The question-resolver is responsible for creating GitHub issues for §8 questions and tagging each
+entry with `(Issue: <url>)`. The plan-writer may pre-tag questions with `(Issue: TBD)`; the
+question-resolver handles both formats. Check whether §8 has any open questions first.
 
 **First check** — look for unresolved questions tagged `(Issue:`:
 
@@ -152,8 +174,11 @@ awk '/^## 8\. /,/^## 9\./' docs/exec-plans/active/<phase>-<slug>.md \
 
 If the second check has output (e.g., questions self-resolved and marked "Not expected to become
 an Issue"), surface it to the human: show the content and ask "§8 has content not tagged
-`(Issue:` — is it fully resolved, or should we run Step 3.5?" Only skip to Step 4 if both
-checks produce no output.
+`(Issue:` — is it fully resolved, or are these open questions that need GitHub issues?" If the
+human confirms the content is fully resolved, skip to Step 4. If the human says these are open
+questions, proceed to Pass 1 below — the question-resolver treats entries with no `(Issue:`
+suffix as `(Issue: TBD)` and will create their issues. Only skip to Step 4 if both checks
+produce no output or the human confirms all content is resolved.
 
 ### Pass 1 — create issues and post proposals
 
@@ -164,11 +189,20 @@ node scripts/flow/run.mjs --provider "${FLOW_PROVIDER:-claude}" \
   --task "Task: Resolve all open questions in §8 of docs/exec-plans/active/<phase>-<slug>.md."
 ```
 
-Verify: a GitHub issue is created for each §8 question and its URL is recorded in §8; a proposal
-comment is posted on each issue; §11 is not yet modified; marker is
-`QUESTIONS-RESOLVED: NEEDS-HUMAN`.
+Check the outcome:
+
+```bash
+jq -r '.result' .flow/question-resolver-pass1-run-latest.json | grep "^QUESTIONS-RESOLVED:"
+```
+
+If `QUESTIONS-RESOLVED: NEEDS-HUMAN`, the agent has posted its proposals and is waiting for
+human input — proceed to the Human Gate below. If `QUESTIONS-RESOLVED: DONE`, §8 was already
+empty — skip to Step 4. If neither value appears, log an orchestration break and stop.
 
 ### Human gate
+
+Before reviewing the issues, verify: a GitHub issue is created for each §8 question and its URL
+is recorded in §8; a proposal comment is posted on each issue; §11 is not yet modified.
 
 Review each GitHub issue comment and approve, modify, or reject the proposal directly in the
 issue thread.
@@ -182,10 +216,19 @@ node scripts/flow/run.mjs --provider "${FLOW_PROVIDER:-claude}" \
   --task "Task: Resolve all open questions in §8 of docs/exec-plans/active/<phase>-<slug>.md."
 ```
 
-Verify: each approved question has its D-N entry appended to §11, is removed from §8, and its
-issue is closed. Marker is `QUESTIONS-RESOLVED: DONE` once §8 is empty.
+Check the outcome:
 
-If any §7 items are answered by the new decisions, run plan-writer once more to clear §7:
+```bash
+jq -r '.result' .flow/question-resolver-pass2-run-latest.json | grep "^QUESTIONS-RESOLVED:"
+```
+
+If `QUESTIONS-RESOLVED: DONE`, the question-resolver has written every ratified decision to §11,
+removed the questions from §8, and closed their issues — proceed. If `QUESTIONS-RESOLVED: NEEDS-HUMAN`,
+repeat Pass 2 after the human has responded on the remaining issues. If neither value appears,
+log an orchestration break and stop.
+
+If the question-resolver's output notes that §7 items are now answered by decisions in §11,
+run plan-writer once more to clear §7:
 
 ```bash
 node scripts/flow/run.mjs --provider "${FLOW_PROVIDER:-claude}" \
@@ -211,6 +254,16 @@ node scripts/flow/run.mjs --provider "${FLOW_PROVIDER:-claude}" \
 
 
 ## Step 4.5 — Open PR
+
+Check the implementer outcome before opening a PR:
+
+```bash
+jq -r '.result' .flow/implementer-run-latest.json | grep "^IMPLEMENTER:"
+```
+
+If `IMPLEMENTER: STOPPED`, do not proceed — stop and ask the human to review the blocker
+described in the report. If `IMPLEMENTER: DONE`, proceed. If neither value appears, log an
+orchestration break and stop.
 
 ```bash
 jq -r '.result' .flow/implementer-run-latest.json | grep -v "^IMPLEMENTER: DONE" > .flow/pr-body.md
@@ -413,6 +466,15 @@ jq -r '.result' .flow/fix-agent-run-latest.json > .flow/fix-report.txt
 gh pr comment $PR_URL --body-file .flow/fix-report.txt
 ```
 
+Check the fix-agent marker:
+
+```bash
+jq -r '.result' .flow/fix-agent-run-latest.json | grep "^FIX-RESULT:"
+```
+
+If neither `FIX-RESULT: DONE` nor `FIX-RESULT: NEEDS-HUMAN` appears, log an orchestration break
+and stop — do not re-run reviewers.
+
 If the marker is `FIX-RESULT: DONE`:
 
 Ask the user to review `.flow/pr-comments.txt` for any remaining non-blocking items and confirm:
@@ -435,6 +497,9 @@ Repeat until both reviewers emit `FLOW-VERDICT ... verdict=APPROVED`. Confirm wi
 jq -r '.result' .flow/pr-reviewer-a-run-latest.json | grep "^FLOW-VERDICT"
 jq -r '.result' .flow/pr-reviewer-b-run-latest.json | grep "^FLOW-VERDICT"
 ```
+
+Each line must contain `verdict=APPROVED` or `verdict=BLOCKING`. If a line is missing or contains
+neither value, log an orchestration break and stop — do not proceed to Step 7.5.
 
 If the marker is `FIX-RESULT: NEEDS-HUMAN`, review the unresolved items in the fix report and
 post your guidance as a PR comment:
@@ -512,6 +577,15 @@ $(cat .flow/orchestration-breaks.md 2>/dev/null || echo 'None recorded.')
 CI check results:
 $(cat .flow/ci-results.txt)"
 ```
+
+Check the outcome:
+
+```bash
+jq -r '.result' .flow/retro-writer-run-latest.json | grep "^RETRO-WRITER:"
+```
+
+If `RETRO-WRITER: STOPPED`, address the stated blocker and re-run Step 8 before continuing. If
+`RETRO-WRITER: DONE`, proceed. If neither value appears, log an orchestration break and stop.
 
 ---
 
