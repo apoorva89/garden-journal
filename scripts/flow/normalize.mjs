@@ -4,25 +4,34 @@ function requireText(value, field) {
   }
 }
 
+function validIso(value) {
+  return (
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value) &&
+    Number.isFinite(Date.parse(value)) &&
+    new Date(value).toISOString() ===
+      value.replace(/Z$/, value.includes('.') ? 'Z' : '.000Z')
+  );
+}
+
 export function normalizeOutput({
   provider,
   role,
   timestamp,
+  endedAt = null,
   exitCode,
   output,
+  runId = null,
+  phase = null,
+  model = null,
+  logDirectory = null,
 }) {
   if (provider !== 'claude' && provider !== 'codex') {
     throw new TypeError('provider must be claude or codex');
   }
   requireText(role, 'role');
 
-  if (
-    typeof timestamp !== 'string' ||
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(timestamp) ||
-    !Number.isFinite(Date.parse(timestamp)) ||
-    new Date(timestamp).toISOString() !==
-      timestamp.replace(/Z$/, timestamp.includes('.') ? 'Z' : '.000Z')
-  ) {
+  if (!validIso(timestamp)) {
     throw new TypeError('timestamp must be a valid ISO 8601 UTC timestamp');
   }
   if (!Number.isInteger(exitCode) || exitCode < 0 || exitCode > 255) {
@@ -31,6 +40,10 @@ export function normalizeOutput({
   requireText(output, 'native output');
 
   let result = output;
+  let tokenUsage = null;
+  let costUsd = null;
+  let providerDurationMs = null;
+
   if (provider === 'claude') {
     let native;
     try {
@@ -45,10 +58,34 @@ export function normalizeOutput({
       throw new Error('Claude reported an execution error');
     }
     result = native.result;
+    if (native.usage && typeof native.usage === 'object' && !Array.isArray(native.usage)) {
+      tokenUsage = native.usage;
+    }
+    if (typeof native.cost_usd === 'number') costUsd = native.cost_usd;
+    if (typeof native.duration_ms === 'number') providerDurationMs = native.duration_ms;
   }
   requireText(result, 'result');
+
+  const wallMs =
+    endedAt !== null && validIso(endedAt)
+      ? Date.parse(endedAt) - Date.parse(timestamp)
+      : null;
+
   return {
-    schema_version: 1, provider, role, timestamp,
-    exit_code: exitCode, result,
+    schema_version: 2,
+    run_id: runId ?? null,
+    provider,
+    role,
+    phase: phase ?? null,
+    model: model ?? null,
+    started_at: timestamp,
+    ended_at: endedAt ?? null,
+    wall_ms: wallMs,
+    exit_code: exitCode,
+    ...(tokenUsage !== null && { token_usage: tokenUsage }),
+    ...(costUsd !== null && { cost_usd: costUsd }),
+    ...(providerDurationMs !== null && { provider_duration_ms: providerDurationMs }),
+    log_directory: logDirectory ?? null,
+    result,
   };
 }
