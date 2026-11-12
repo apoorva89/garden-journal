@@ -153,7 +153,9 @@ Return to Step 2. Repeat Steps 2–3 until Step 2 ends with `PLAN-REVIEW: CLEAN`
 
 ## Step 3.5 — question-resolver (conditional — skip if §8 is empty)
 
-Check whether §8 has any open questions first.
+The question-resolver is responsible for creating GitHub issues for §8 questions and tagging each
+entry with `(Issue: <url>)`. The plan-writer may pre-tag questions with `(Issue: TBD)`; the
+question-resolver handles both formats. Check whether §8 has any open questions first.
 
 **First check** — look for unresolved questions tagged `(Issue:`:
 
