@@ -174,8 +174,11 @@ awk '/^## 8\. /,/^## 9\./' docs/exec-plans/active/<phase>-<slug>.md \
 
 If the second check has output (e.g., questions self-resolved and marked "Not expected to become
 an Issue"), surface it to the human: show the content and ask "§8 has content not tagged
-`(Issue:` — is it fully resolved, or should we run Step 3.5?" Only skip to Step 4 if both
-checks produce no output.
+`(Issue:` — is it fully resolved, or are these open questions that need GitHub issues?" If the
+human confirms the content is fully resolved, skip to Step 4. If the human says these are open
+questions, proceed to Pass 1 below — the question-resolver treats entries with no `(Issue:`
+suffix as `(Issue: TBD)` and will create their issues. Only skip to Step 4 if both checks
+produce no output or the human confirms all content is resolved.
 
 ### Pass 1 — create issues and post proposals
 
