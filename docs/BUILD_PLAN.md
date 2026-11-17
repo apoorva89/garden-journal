@@ -43,29 +43,30 @@ Phases that are Done are listed first. Order numbers apply to phases not yet bui
 | — | 7c addendum | Location capture | 7c | Done |
 | — | 8b | Sync & Verify data model | 7c | Done |
 | — | 8c | Sync & Verify weather sync | 8b | Done |
-| 1 | 8d-1 | Sync orchestrator and SyncSheet | 8c | Next |
-| 2 | 8d-2 | Extraction request builder | 8b | Not started |
-| 3 | schema-guard | Runtime startup schema check | — | Done |
-| 4 | 8d-3 | Live extraction call | 8d-2 | Not started |
-| 5 | 8d-4 | Extracted event resolution | 8b, 8d-2 | Not started |
-| 6 | 8d-5 | Extraction wiring and read-only cards | 8d-1, 8d-3, 8d-4 | Not started |
-| 7 | 8e-1 | Review outcomes and event photos schema | 8b | Not started |
-| 8 | 8e-2 | Card states and Done gate | 8d-5 | Not started |
-| 9 | 8e-3 | Instance resolution | 8e-2 | Not started |
-| 10 | 8e-4 | Edit Event screen and Add missed event | 8e-2 | Not started |
-| 11 | 8e-5 | Commit on Done | 8e-1, 8e-3, 8e-4 | Not started |
-| 12 | 8e-6 | Photo tags and auto-attach | 8e-1, 8e-5 | Not started |
-| 13 | 8f-1 | Manual Retry | 8d-5 | Not started |
-| 14 | 10 | Next Season tab | 8e-5 | Not started |
-| 15 | Eval set | AI evaluation set | 8d-3, 8e-5 | Needs design |
-| 16 | 13 | Photo-only entries | 3, 4 | Not started |
-| 17 | 12a | Entry edit rules and weather refresh | 3, 4, 8c, 8e-1 | Not started |
-| 18 | 12b | Committed event dates | 12a, 8e-1, 8e-5 | Not started |
-| 19 | 8f-2 | Re-run extraction | 8e-5 | Not started |
-| 20 | 8f-3 | Staleness check | 8f-2, 12a | Not started |
-| 21 | 9a | Crop Timeline: Timeline tab | 8e-5 | Not started |
-| 22 | 9b | Crop Timeline: Issues tab | 9a | Not started |
-| 23 | 11 | Care tab | 9a | Deferred |
+| — | 8d-1 | Sync orchestrator and SyncSheet | 8c | Done |
+| — | 8d-2 | Extraction request builder | 8b | Done |
+| — | schema-guard | Runtime startup schema check | — | Done |
+| — | 8d-3 | Live extraction call | 8d-2 | Done |
+| — | 8d-4 | Extracted event resolution | 8b, 8d-2 | Done |
+| 1 | 8d-3b | OpenAI provider | 8d-3 | Not started |
+| 2 | 8d-5 | Extraction wiring and read-only cards | 8d-1, 8d-3, 8d-4 | Not started |
+| 3 | 8e-1 | Review outcomes and event photos schema | 8b | Not started |
+| 4 | 8e-2 | Card states and Done gate | 8d-5 | Not started |
+| 5 | 8e-3 | Instance resolution | 8e-2 | Not started |
+| 6 | 8e-4 | Edit Event screen and Add missed event | 8e-2 | Not started |
+| 7 | 8e-5 | Commit on Done | 8e-1, 8e-3, 8e-4 | Not started |
+| 8 | 8e-6 | Photo tags and auto-attach | 8e-1, 8e-5 | Not started |
+| 9 | 8f-1 | Manual Retry | 8d-5 | Not started |
+| 10 | 10 | Next Season tab | 8e-5 | Not started |
+| 11 | Eval set | AI evaluation set | 8d-3, 8d-3b, 8e-5 | Needs design |
+| 12 | 13 | Photo-only entries | 3, 4 | Not started |
+| 13 | 12a | Entry edit rules and weather refresh | 3, 4, 8c, 8e-1 | Not started |
+| 14 | 12b | Committed event dates | 12a, 8e-1, 8e-5 | Not started |
+| 15 | 8f-2 | Re-run extraction | 8e-5 | Not started |
+| 16 | 8f-3 | Staleness check | 8f-2, 12a | Not started |
+| 17 | 9a | Crop Timeline: Timeline tab | 8e-5 | Not started |
+| 18 | 9b | Crop Timeline: Issues tab | 9a | Not started |
+| 19 | 11 | Care tab | 9a | Deferred |
 
 ---
 
@@ -222,11 +223,11 @@ Done when:
 
 ## Phase 8d: AI extraction
 
-Phase 8d turns an entry's text into reviewable events. It is split into five sub-phases. The review interface is Phase 8e.
+Phase 8d turns an entry's text into reviewable events. It is split into six sub-phases; 8d-1 through 8d-4 are Done. The review interface is Phase 8e.
 
 ### 8d-1: Sync orchestrator and SyncSheet
 
-**Status:** Next. **Depends on:** 8c.
+**Status:** Done. **Depends on:** 8c.
 **Decisions:** `DECISIONS.md` D-010, D-052, D-055, D-066, D-090, D-097.
 **Architecture:** `ARCHITECTURE.md` §3, §4, §9.
 
@@ -254,7 +255,7 @@ Done when:
 ### 8d-2: Extraction request builder
 
 
-**Status:** Not started. **Depends on:** 8b.
+**Status:** Done. **Depends on:** 8b.
 **Decisions:** `DECISIONS.md` D-092, D-061, D-062, D-063, D-064, D-093, D-095.
 **Architecture:** `ARCHITECTURE.md` §5, §9.
 
@@ -280,7 +281,7 @@ Done when:
 
 ### 8d-3: Live extraction call
 
-**Status:** Not started. **Depends on:** 8d-2.
+**Status:** Done. **Depends on:** 8d-2.
 **Decisions:** `DECISIONS.md` D-058, D-059, D-092, D-067, D-068, D-035.
 **Architecture:** `ARCHITECTURE.md` §4, §5, §9.
 
@@ -301,9 +302,33 @@ Done when (tests stub the network):
 - The request uses the provider, model and key from Settings.
 - On the installed app, one real call with a real key against a sample entry returns events and produces one usage record.
 
+### 8d-3b: OpenAI provider
+
+**Status:** Not started. **Depends on:** 8d-3.
+**Decisions:** `DECISIONS.md` D-104, D-103, D-035, D-059.
+**Architecture:** `ARCHITECTURE.md` §5, §9.
+
+Scope: the OpenAI implementation of `AIProvider.extract()`. Mirrors `anthropicProvider.ts` for the OpenAI wire format. No schema change, no DB wipe, no new Settings fields (`DECISIONS.md` D-035).
+
+- `openaiProvider.ts` translates the provider-agnostic `ExtractionRequest` to the OpenAI messages API, mapping `input_schema` to `parameters` (`DECISIONS.md` D-103).
+- `getProvider('openai')` returns an `OpenAIProvider` instance instead of throwing "not implemented".
+- OpenAI usage fields mapped to `UsageData`.
+
+Out of scope: request building (8d-2), resolution (8d-4), saving a `PendingExtraction` (8d-5), evaluation (Eval set).
+
+Done when (tests stub fetch):
+
+- `getProvider('openai')` returns an `OpenAIProvider` and no longer throws "not implemented".
+- A well-formed OpenAI response returns validated events.
+- `extract()` sends the OpenAI wire format with `input_schema` renamed to `parameters`.
+- A response with usage data but malformed content logs one `ApiUsageLog` record and throws a validation error.
+- A network failure before any response logs nothing and returns an error.
+- When the provider fails, `extract()` sends exactly one request.
+- A live-call test, excluded from CI (skipped when `OPENAI_API_KEY` is not set), sends one real request with a real key against a sample entry, returns events, and produces one usage record.
+
 ### 8d-4: Extracted event resolution
 
-**Status:** Not started. **Depends on:** 8b, 8d-2.
+**Status:** Done. **Depends on:** 8b, 8d-2.
 **Decisions:** `DECISIONS.md` D-086, D-062, D-063, D-093.
 **Architecture:** `ARCHITECTURE.md` §5, §9.
 
