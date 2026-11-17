@@ -20,10 +20,8 @@ export default function JournalPage() {
   const [unsyncedCount, setUnsyncedCount] = useState(0)
   const [showSync, setShowSync] = useState(false)
 
-  const loadMonth = useCallback(async (year: number, month: number) => {
-    setLoaded(false)
+  const fetchMonthData = useCallback(async (year: number, month: number) => {
     const es = await getEntriesByMonth(year, month)
-    setEntries(es)
     const map: Record<string, EntryPhoto[]> = {}
     await Promise.all(
       es.map(async (e) => {
@@ -31,17 +29,23 @@ export default function JournalPage() {
         map[e.id] = photos
       }),
     )
-    setPhotosByEntry(map)
-    setLoaded(true)
+    return { entries: es, photosByEntry: map }
   }, [])
 
   useEffect(() => {
     let cancelled = false
-    loadMonth(displayYear, displayMonth).then(() => {
-      if (!cancelled) getUnsyncedEntries().then((es) => setUnsyncedCount(es.length))
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoaded(false)
+    fetchMonthData(displayYear, displayMonth).then(({ entries: es, photosByEntry: map }) => {
+      if (!cancelled) {
+        setEntries(es)
+        setPhotosByEntry(map)
+        setLoaded(true)
+        getUnsyncedEntries().then((us) => setUnsyncedCount(us.length))
+      }
     })
     return () => { cancelled = true }
-  }, [displayYear, displayMonth, loadMonth])
+  }, [displayYear, displayMonth, fetchMonthData])
 
   function handleMonthChange(year: number, month: number) {
     setDisplayYear(year)
@@ -60,9 +64,13 @@ export default function JournalPage() {
   }
 
   async function handleSynced() {
-    const es = await getUnsyncedEntries()
-    setUnsyncedCount(es.length)
-    loadMonth(displayYear, displayMonth)
+    const us = await getUnsyncedEntries()
+    setUnsyncedCount(us.length)
+    fetchMonthData(displayYear, displayMonth).then(({ entries: es, photosByEntry: map }) => {
+      setEntries(es)
+      setPhotosByEntry(map)
+      setLoaded(true)
+    })
   }
 
   const entryDates = new Set(entries.map((e) => e.date))

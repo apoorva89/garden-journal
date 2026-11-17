@@ -146,7 +146,7 @@ export default function SettingsPage() {
   if (!loaded) return null
 
   const hasTextButNoCoords =
-    locationDirty && settingsRef.current.locationName.trim() !== '' && settings.latitude == null
+    locationDirty && settings.locationName.trim() !== '' && settings.latitude == null
 
   const suggestedModels = getModelsForProvider(settings.aiProvider)
 
