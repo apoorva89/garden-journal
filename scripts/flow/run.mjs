@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { constants } from 'node:os';
 import {
   renameSync, symlinkSync, writeFileSync,
@@ -11,6 +11,22 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { normalizeOutput } from './normalize.mjs';
 import { executionRoles, providerCommand } from './providers.mjs';
+
+function resolveGitCommonDir(cwd) {
+  // --path-format=absolute requires git 2.31+; fall back to resolving manually.
+  try {
+    return execFileSync(
+      'git', ['rev-parse', '--path-format=absolute', '--git-common-dir'],
+      { cwd, encoding: 'utf8' },
+    ).trim();
+  } catch {
+    const rel = execFileSync(
+      'git', ['rev-parse', '--git-common-dir'],
+      { cwd, encoding: 'utf8' },
+    ).trim();
+    return resolve(cwd, rel);
+  }
+}
 
 function safeName(value, field) {
   if (typeof value !== 'string' || !/^[a-z][a-z0-9-]*$/.test(value)) {
@@ -191,7 +207,10 @@ async function main() {
     return;
   }
   if (!values.role) throw new Error('--role is required; choose a supported execution role');
-  const command = providerCommand(values);
+  const writableRoots = ['implementer', 'fix-agent'].includes(values.role) && values.provider === 'codex'
+    ? [resolveGitCommonDir(process.cwd())]
+    : undefined;
+  const command = providerCommand({ ...values, writableRoots });
   if (values['artifact-name'] !== undefined) {
     safeName(values['artifact-name'], 'artifactName');
   }
