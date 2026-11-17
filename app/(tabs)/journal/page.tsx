@@ -34,6 +34,8 @@ export default function JournalPage() {
 
   useEffect(() => {
     let cancelled = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoaded(false)
     fetchMonthData(displayYear, displayMonth).then(({ entries: es, photosByEntry: map }) => {
       if (!cancelled) {
         setEntries(es)

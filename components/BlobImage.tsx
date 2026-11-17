@@ -1,20 +1,21 @@
 'use client'
 
-import { useLayoutEffect, useRef } from 'react'
+import { useLayoutEffect, useState } from 'react'
 
 interface Props extends React.ImgHTMLAttributes<HTMLImageElement> {
   blob: Blob
 }
 
 export default function BlobImage({ blob, alt = '', ...props }: Props) {
-  const imgRef = useRef<HTMLImageElement | null>(null)
+  const [src, setSrc] = useState<string | undefined>(undefined)
 
   useLayoutEffect(() => {
     const url = URL.createObjectURL(blob)
-    if (imgRef.current) imgRef.current.src = url
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSrc(url)
     return () => URL.revokeObjectURL(url)
   }, [blob])
 
   // eslint-disable-next-line @next/next/no-img-element
-  return <img ref={imgRef} alt={alt} {...props} />
+  return <img src={src} alt={alt} {...props} />
 }
