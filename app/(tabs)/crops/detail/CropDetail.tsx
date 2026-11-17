@@ -48,17 +48,15 @@ export default function CropDetail() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    setCropType(null)
     if (!id) { router.replace('/crops'); return }
     getCropTypeById(id).then((ct) => {
       if (!ct) { router.replace('/crops'); return }
       setCropType(ct)
     })
+    return () => { setCropType(null) }
   }, [id, router])
 
   useEffect(() => {
-    setInstances([])
-    setInstancesLoaded(false)
     if (!id) return
     let cancelled = false
     getCropInstancesByType(id)
@@ -76,7 +74,7 @@ export default function CropDetail() {
         console.error('Failed to load instances:', err)
         if (!cancelled) setInstancesLoaded(true)
       })
-    return () => { cancelled = true }
+    return () => { cancelled = true; setInstances([]); setInstancesLoaded(false) }
   }, [id])
 
   useEffect(() => {

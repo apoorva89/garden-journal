@@ -85,7 +85,7 @@ export default function CropTagSheet({ photoLabel, selectedIds, onDone, onClose 
         {/* Scrollable list */}
         <div className="overflow-y-auto flex-1">
           {filtered.length === 0 && search.length > 0 && (
-            <p className="px-4 py-6 text-sm text-muted text-center">No crops match "{search}"</p>
+            <p className="px-4 py-6 text-sm text-muted text-center">No crops match &quot;{search}&quot;</p>
           )}
           {filtered.length === 0 && search.length === 0 && crops.length === 0 && (
             <p className="px-4 py-6 text-sm text-muted text-center">No crops yet — add one below.</p>

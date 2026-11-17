@@ -14,6 +14,7 @@ describe('isSchemaValid', () => {
     // Create a DB that is missing all but one store
     const idb = new IDBFactory()
     ;(globalThis as Record<string, unknown>).indexedDB = idb
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = await openDB<any>('test-missing-store', 1, {
       upgrade(database) {
         database.createObjectStore('cropTypes', { keyPath: 'id' })
@@ -27,6 +28,7 @@ describe('isSchemaValid', () => {
     // Create all stores from SCHEMA but omit all indexes on cropInstances
     const idb = new IDBFactory()
     ;(globalThis as Record<string, unknown>).indexedDB = idb
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = await openDB<any>('test-missing-index', 1, {
       upgrade(database) {
         for (const [storeName, spec] of Object.entries(SCHEMA)) {

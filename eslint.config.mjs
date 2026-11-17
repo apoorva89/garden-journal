@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Claude Code worktrees and job scratch dirs — not project source
+    ".claude/**",
   ]),
 ]);
 

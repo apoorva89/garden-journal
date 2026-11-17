@@ -280,6 +280,7 @@ export async function openGardenDB(idbFactory?: IDBFactory): Promise<GardenDB> {
   return openDB<GardenDBSchema>('garden-journal', 1, {
     upgrade(database) {
       for (const [storeName, spec] of Object.entries(SCHEMA)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const store = (database as IDBPDatabase<any>).createObjectStore(storeName, spec.options)
         for (const [indexName, { keyPath, options }] of Object.entries(spec.indexes ?? {})) {
           store.createIndex(indexName, keyPath, options)
@@ -296,34 +297,34 @@ export const db: Promise<GardenDB> =
 
 db.catch(() => {})
 
-async function useDb(database?: GardenDB): Promise<GardenDB> {
+async function resolveDb(database?: GardenDB): Promise<GardenDB> {
   return database ?? db
 }
 
 // ── CropType CRUD ─────────────────────────────────────────────────────────────
 
 export async function getAllCropTypes(database?: GardenDB): Promise<CropType[]> {
-  return (await useDb(database)).getAll('cropTypes')
+  return (await resolveDb(database)).getAll('cropTypes')
 }
 
 export async function getCropTypeById(id: string, database?: GardenDB): Promise<CropType | undefined> {
-  return (await useDb(database)).get('cropTypes', id)
+  return (await resolveDb(database)).get('cropTypes', id)
 }
 
 export async function createCropType(data: Omit<CropType, 'id'>, database?: GardenDB): Promise<CropType> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const record: CropType = { ...data, id: nanoid() }
   await d.add('cropTypes', record)
   return record
 }
 
 export async function updateCropType(cropType: CropType, database?: GardenDB): Promise<CropType> {
-  await (await useDb(database)).put('cropTypes', cropType)
+  await (await resolveDb(database)).put('cropTypes', cropType)
   return cropType
 }
 
 export async function deleteCropType(id: string, database?: GardenDB): Promise<CropType | undefined> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const record = await d.get('cropTypes', id)
   await d.delete('cropTypes', id)
   return record
@@ -332,27 +333,27 @@ export async function deleteCropType(id: string, database?: GardenDB): Promise<C
 // ── CropInstance CRUD ─────────────────────────────────────────────────────────
 
 export async function getAllCropInstances(database?: GardenDB): Promise<CropInstance[]> {
-  return (await useDb(database)).getAll('cropInstances')
+  return (await resolveDb(database)).getAll('cropInstances')
 }
 
 export async function getCropInstanceById(id: string, database?: GardenDB): Promise<CropInstance | undefined> {
-  return (await useDb(database)).get('cropInstances', id)
+  return (await resolveDb(database)).get('cropInstances', id)
 }
 
 export async function createCropInstance(data: Omit<CropInstance, 'id'>, database?: GardenDB): Promise<CropInstance> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const record: CropInstance = { ...data, id: nanoid() }
   await d.add('cropInstances', record)
   return record
 }
 
 export async function updateCropInstance(cropInstance: CropInstance, database?: GardenDB): Promise<CropInstance> {
-  await (await useDb(database)).put('cropInstances', cropInstance)
+  await (await resolveDb(database)).put('cropInstances', cropInstance)
   return cropInstance
 }
 
 export async function deleteCropInstance(id: string, database?: GardenDB): Promise<CropInstance | undefined> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const record = await d.get('cropInstances', id)
   await d.delete('cropInstances', id)
   return record
@@ -361,18 +362,18 @@ export async function deleteCropInstance(id: string, database?: GardenDB): Promi
 // ── JournalEntry CRUD ─────────────────────────────────────────────────────────
 
 export async function getAllJournalEntries(database?: GardenDB): Promise<JournalEntry[]> {
-  return (await useDb(database)).getAll('journalEntries')
+  return (await resolveDb(database)).getAll('journalEntries')
 }
 
 export async function getJournalEntryById(id: string, database?: GardenDB): Promise<JournalEntry | undefined> {
-  return (await useDb(database)).get('journalEntries', id)
+  return (await resolveDb(database)).get('journalEntries', id)
 }
 
 export async function createJournalEntry(
   data: Omit<JournalEntry, 'id' | 'yearMonth' | 'needsSync' | 'updatedAt'>,
   database?: GardenDB,
 ): Promise<JournalEntry> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const record: JournalEntry = { ...data, id: nanoid(), yearMonth: data.date.slice(0, 7), needsSync: 1, updatedAt: new Date().toISOString() }
   await d.add('journalEntries', record)
   return record
@@ -380,12 +381,12 @@ export async function createJournalEntry(
 
 export async function updateJournalEntry(entry: JournalEntry, database?: GardenDB): Promise<JournalEntry> {
   const updated = { ...entry, updatedAt: new Date().toISOString() }
-  await (await useDb(database)).put('journalEntries', updated)
+  await (await resolveDb(database)).put('journalEntries', updated)
   return updated
 }
 
 export async function deleteJournalEntry(id: string, database?: GardenDB): Promise<JournalEntry | undefined> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const record = await d.get('journalEntries', id)
   await d.delete('journalEntries', id)
   return record
@@ -394,24 +395,24 @@ export async function deleteJournalEntry(id: string, database?: GardenDB): Promi
 // ── EntryPhoto CRUD ───────────────────────────────────────────────────────────
 
 export async function createEntryPhoto(data: Omit<EntryPhoto, 'id'>, database?: GardenDB): Promise<EntryPhoto> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const record = await toStored({ ...data, id: nanoid() })
   await d.add('entryPhotos', record)
   return fromStored(record)
 }
 
 export async function getEntryPhotosByEntry(entryId: string, database?: GardenDB): Promise<EntryPhoto[]> {
-  const records = await (await useDb(database)).getAllFromIndex('entryPhotos', 'by-entryId', entryId)
+  const records = await (await resolveDb(database)).getAllFromIndex('entryPhotos', 'by-entryId', entryId)
   return records.map(fromStored)
 }
 
 export async function updateEntryPhoto(photo: EntryPhoto, database?: GardenDB): Promise<EntryPhoto> {
-  await (await useDb(database)).put('entryPhotos', await toStored(photo) as StoredEntryPhoto)
+  await (await resolveDb(database)).put('entryPhotos', await toStored(photo) as StoredEntryPhoto)
   return photo
 }
 
 export async function deleteEntryPhoto(id: string, database?: GardenDB): Promise<EntryPhoto | undefined> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const stored = await d.get('entryPhotos', id)
   await d.delete('entryPhotos', id)
   return stored ? fromStored(stored) : undefined
@@ -420,27 +421,27 @@ export async function deleteEntryPhoto(id: string, database?: GardenDB): Promise
 // ── CropEvent CRUD ────────────────────────────────────────────────────────────
 
 export async function getAllCropEvents(database?: GardenDB): Promise<CropEvent[]> {
-  return (await useDb(database)).getAll('cropEvents')
+  return (await resolveDb(database)).getAll('cropEvents')
 }
 
 export async function getCropEventById(id: string, database?: GardenDB): Promise<CropEvent | undefined> {
-  return (await useDb(database)).get('cropEvents', id)
+  return (await resolveDb(database)).get('cropEvents', id)
 }
 
 export async function createCropEvent(data: Omit<CropEvent, 'id' | 'year' | 'resolved'>, database?: GardenDB): Promise<CropEvent> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const record: CropEvent = { ...data, id: nanoid(), year: Number(data.date.slice(0, 4)), resolved: false }
   await d.add('cropEvents', record)
   return record
 }
 
 export async function updateCropEvent(event: CropEvent, database?: GardenDB): Promise<CropEvent> {
-  await (await useDb(database)).put('cropEvents', event)
+  await (await resolveDb(database)).put('cropEvents', event)
   return event
 }
 
 export async function deleteCropEvent(id: string, database?: GardenDB): Promise<CropEvent | undefined> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const record = await d.get('cropEvents', id)
   await d.delete('cropEvents', id)
   return record
@@ -449,27 +450,27 @@ export async function deleteCropEvent(id: string, database?: GardenDB): Promise<
 // ── CareTask CRUD ─────────────────────────────────────────────────────────────
 
 export async function getAllCareTasks(database?: GardenDB): Promise<CareTask[]> {
-  return (await useDb(database)).getAll('careTasks')
+  return (await resolveDb(database)).getAll('careTasks')
 }
 
 export async function getCareTaskById(id: string, database?: GardenDB): Promise<CareTask | undefined> {
-  return (await useDb(database)).get('careTasks', id)
+  return (await resolveDb(database)).get('careTasks', id)
 }
 
 export async function createCareTask(data: Omit<CareTask, 'id'>, database?: GardenDB): Promise<CareTask> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const record: CareTask = { ...data, id: nanoid() }
   await d.add('careTasks', record)
   return record
 }
 
 export async function updateCareTask(task: CareTask, database?: GardenDB): Promise<CareTask> {
-  await (await useDb(database)).put('careTasks', task)
+  await (await resolveDb(database)).put('careTasks', task)
   return task
 }
 
 export async function deleteCareTask(id: string, database?: GardenDB): Promise<CareTask | undefined> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const record = await d.get('careTasks', id)
   await d.delete('careTasks', id)
   return record
@@ -478,12 +479,12 @@ export async function deleteCareTask(id: string, database?: GardenDB): Promise<C
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 export async function getSettings(database?: GardenDB): Promise<Settings | null> {
-  const result = await (await useDb(database)).get('settings', 'settings')
+  const result = await (await resolveDb(database)).get('settings', 'settings')
   return result ?? null
 }
 
 export async function saveSettings(settings: Settings, database?: GardenDB): Promise<Settings> {
-  await (await useDb(database)).put('settings', settings, 'settings')
+  await (await resolveDb(database)).put('settings', settings, 'settings')
   return settings
 }
 
@@ -494,42 +495,42 @@ export async function getEntriesByMonth(
   month: number,
   database?: GardenDB,
 ): Promise<JournalEntry[]> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const yearMonth = `${year}-${String(month).padStart(2, '0')}`
   const entries = await d.getAllFromIndex('journalEntries', 'by-yearMonth', yearMonth)
   return entries.sort((a, b) => b.date.localeCompare(a.date) || a.createdAt.localeCompare(b.createdAt))
 }
 
 export async function getUnsyncedEntries(database?: GardenDB): Promise<JournalEntry[]> {
-  return (await useDb(database)).getAllFromIndex('journalEntries', 'by-needsSync', 1)
+  return (await resolveDb(database)).getAllFromIndex('journalEntries', 'by-needsSync', 1)
 }
 
 export async function getCropInstancesByType(
   cropTypeId: string,
   database?: GardenDB,
 ): Promise<CropInstance[]> {
-  return (await useDb(database)).getAllFromIndex('cropInstances', 'by-cropTypeId', cropTypeId)
+  return (await resolveDb(database)).getAllFromIndex('cropInstances', 'by-cropTypeId', cropTypeId)
 }
 
 export async function getEventsByInstance(
   cropInstanceId: string,
   database?: GardenDB,
 ): Promise<CropEvent[]> {
-  return (await useDb(database)).getAllFromIndex('cropEvents', 'by-cropInstanceId', cropInstanceId)
+  return (await resolveDb(database)).getAllFromIndex('cropEvents', 'by-cropInstanceId', cropInstanceId)
 }
 
 export async function getCareTasksByInstance(
   cropInstanceId: string,
   database?: GardenDB,
 ): Promise<CareTask[]> {
-  return (await useDb(database)).getAllFromIndex('careTasks', 'by-cropInstanceId', cropInstanceId)
+  return (await resolveDb(database)).getAllFromIndex('careTasks', 'by-cropInstanceId', cropInstanceId)
 }
 
 export async function getOpenProblemsByType(
   cropTypeId: string,
   database?: GardenDB,
 ): Promise<CropEvent[]> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
 
   const instances = await d.getAllFromIndex('cropInstances', 'by-cropTypeId', cropTypeId)
   const instanceIds = new Set(instances.map((i) => i.id))
@@ -549,7 +550,7 @@ export async function getLatestPhotoByCropType(
   cropTypeId: string,
   database?: GardenDB,
 ): Promise<EntryPhoto | null> {
-  const records = await (await useDb(database)).getAllFromIndex('entryPhotos', 'by-cropTypeId', cropTypeId)
+  const records = await (await resolveDb(database)).getAllFromIndex('entryPhotos', 'by-cropTypeId', cropTypeId)
   const latest = records.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
   return latest ? fromStored(latest) : null
 }
@@ -559,7 +560,7 @@ export async function getLatestPhotoByCropTypeAndYear(
   year: number,
   database?: GardenDB,
 ): Promise<EntryPhoto | null> {
-  const records = await (await useDb(database)).getAllFromIndex('entryPhotos', 'by-cropTypeId', cropTypeId)
+  const records = await (await resolveDb(database)).getAllFromIndex('entryPhotos', 'by-cropTypeId', cropTypeId)
   const yearStr = String(year)
   const filtered = records.filter((r) => r.entryDate && r.entryDate.slice(0, 4) === yearStr)
   const latest = filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
@@ -567,7 +568,7 @@ export async function getLatestPhotoByCropTypeAndYear(
 }
 
 export async function updateJournalEntryAndPhotoDates(entry: JournalEntry, database?: GardenDB): Promise<JournalEntry> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const tx = d.transaction(['journalEntries', 'entryPhotos'], 'readwrite')
   const entryStore = tx.objectStore('journalEntries')
   const photoStore = tx.objectStore('entryPhotos')
@@ -592,13 +593,13 @@ export async function resetDatabase(): Promise<void> {
 }
 
 export async function getAllOpenProblems(targetYear: number, database?: GardenDB): Promise<CropEvent[]> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const allProblems = await d.getAllFromIndex('cropEvents', 'by-type', 'problem')
   return allProblems.filter((e) => e.resolved === false && e.year === targetYear)
 }
 
 export async function addLessonToCropType(cropTypeId: string, text: string, database?: GardenDB): Promise<Lesson> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const cropType = await d.get('cropTypes', cropTypeId)
   if (!cropType) throw new Error(`CropType not found: ${cropTypeId}`)
   const lesson: Lesson = { id: nanoid(), text, createdAt: new Date().toISOString() }
@@ -609,7 +610,7 @@ export async function addLessonToCropType(cropTypeId: string, text: string, data
 // ── Sync helpers ──────────────────────────────────────────────────────────────
 
 export async function applyNeedsSyncRule(entryId: string, database?: GardenDB): Promise<JournalEntry> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const entry = await d.get('journalEntries', entryId)
   if (!entry) throw new Error(`JournalEntry not found: ${entryId}`)
   const shouldClear = entry.weatherC != null && (!entry.text || !!entry.extractionReviewedAt)
@@ -627,7 +628,7 @@ export async function writeEntryWeather(
   weather: { weatherC: number; weatherIcon: string },
   database?: GardenDB,
 ): Promise<JournalEntry> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const entry = await d.get('journalEntries', entryId)
   if (!entry) throw new Error(`JournalEntry not found: ${entryId}`)
   // Write without touching updatedAt (D-085: updatedAt bumped only by text/nextSeasonNote/date edits)
@@ -639,14 +640,14 @@ export async function getPendingExtractionByEntryId(
   entryId: string,
   database?: GardenDB,
 ): Promise<PendingExtraction | undefined> {
-  return (await useDb(database)).get('pendingExtractions', entryId)
+  return (await resolveDb(database)).get('pendingExtractions', entryId)
 }
 
 export async function addApiUsageLog(
   log: Omit<ApiUsageLog, 'id'>,
   database?: GardenDB,
 ): Promise<ApiUsageLog> {
-  const d = await useDb(database)
+  const d = await resolveDb(database)
   const record: ApiUsageLog = { ...log, id: nanoid() }
   await d.put('apiUsageLogs', record)
   return record
