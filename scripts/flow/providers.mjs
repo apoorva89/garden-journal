@@ -15,7 +15,7 @@ export const executionRoles = Object.freeze([
   ...reviewRoles, ...writingRoles, ...implementationRoles, 'question-resolver',
 ]);
 
-export function providerCommand({ provider, role, plan, model }) {
+export function providerCommand({ provider, role, plan, model, writableRoots }) {
   const knownRole = executionRoles.includes(role);
   if (!knownRole) throw new TypeError(`Unknown execution role: ${role}`);
   if (provider !== 'claude' && provider !== 'codex') {
@@ -34,10 +34,25 @@ export function providerCommand({ provider, role, plan, model }) {
   }
 
   if (provider === 'codex') {
+    const isImpl = implementationRoles.has(role);
+    if (isImpl && (!writableRoots || writableRoots.length === 0)) {
+      throw new TypeError(
+        'codex implementer/fix-agent: writableRoots required ' +
+        '(run: git rev-parse --path-format=absolute --git-common-dir)',
+      );
+    }
+    // network_access=true opens all outbound traffic for impl roles, not just localhost.
+    // Writable .git exposes hooks that run unsandboxed post-sandbox (e.g. on checkout).
+    // Both are acceptable for implementer/fix-agent; do not apply to review or writing roles.
+    const implFlags = isImpl ? [
+      '-c', 'sandbox_workspace_write.network_access=true',
+      '-c', `sandbox_workspace_write.writable_roots=${JSON.stringify(writableRoots)}`,
+    ] : [];
     return [
       'codex', 'exec',
       '--sandbox', reviewRoles.has(role) ? 'read-only' : 'workspace-write',
       '-c', 'approval_policy="never"',
+      ...implFlags,
       '--ephemeral',
       ...(model ? ['--model', model] : []),
       '-',
