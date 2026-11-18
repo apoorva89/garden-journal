@@ -72,6 +72,8 @@ with the description value in the commands below before running any further step
 ## Step 0.6 — create feature branch
 
 ```bash
+git fetch origin main
+git checkout main
 git checkout -b feat/<phase>-<slug>
 ```
 
@@ -93,8 +95,11 @@ Check the outcome:
 jq -r '.result' .flow/plan-writer-run-latest.json | grep "^PLAN-WRITER:"
 ```
 
-If `PLAN-WRITER: DONE`, proceed to Step 2. If `PLAN-WRITER: NEEDS-HUMAN`, stop and address the
-stated blocker before continuing. If neither value appears, log an orchestration break and stop.
+If `PLAN-WRITER: DONE`, ask the user: "The plan draft is ready — please review
+`docs/exec-plans/active/<phase>-<slug>.md`. Confirm when you are ready to proceed to Step 2
+(plan-reviewer)." Wait for the user's confirmation before continuing. If `PLAN-WRITER:
+NEEDS-HUMAN`, stop and address the stated blocker before continuing. If neither value appears,
+log an orchestration break and stop.
 
 ---
 
@@ -546,6 +551,9 @@ gh pr comment $PR_URL --body "FLOW-VERDICT reviewer=human sha=${HEAD} verdict=BL
 
 Return to Step 7 so the fix-agent can address the blocking findings. After the fix-agent
 completes, re-run Steps 5 and 6 before requesting another human verdict.
+
+**Do not prompt the human to merge the PR.** Merging is the human's decision. Once all three
+`FLOW-VERDICT` comments show `verdict=APPROVED`, report completion and proceed to Step 8.
 
 ---
 

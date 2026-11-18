@@ -87,6 +87,8 @@ Questions that do not block approval. Any that survive the phase become GitHub I
 
 ## 9. Progress
 
+**Plan-writers and plan-reviewers must not pre-fill or edit this section.** It is the implementer's living checklist and must remain empty until implementation begins.
+
 Checklist, mandatory. Timestamped in UTC. Record the failing-test step as well as the passing step, so the order of work is visible.
 
 - [ ] YYYY-MM-DD HH:MMZ: AC-1 test written, failing (reason: ...)

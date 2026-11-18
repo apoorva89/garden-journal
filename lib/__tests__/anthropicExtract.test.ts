@@ -4,6 +4,7 @@ import { openGardenDB } from '../db'
 import type { GardenDB, Settings } from '../db'
 import { runExtraction } from '../orchestrator/ai'
 import { getProvider } from '../ai/provider'
+import { OpenAIProvider } from '../ai/openaiProvider'
 import type { ExtractionRequest } from '../ai/requestBuilder'
 
 function freshDb() {
@@ -235,7 +236,7 @@ describe('getProvider', () => {
     expect(() => getProvider('unknown-provider-id')).toThrow(/not implemented/i)
   })
 
-  it('throws for openai (not yet implemented)', () => {
-    expect(() => getProvider('openai')).toThrow(/not implemented/i)
+  it('returns an OpenAIProvider for openai', () => {
+    expect(getProvider('openai')).toBeInstanceOf(OpenAIProvider)
   })
 })

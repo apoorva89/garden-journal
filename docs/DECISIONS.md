@@ -317,7 +317,7 @@ Entries written before this log existed have no dates. New entries include a **D
 **Status:** Current
 **Phase:** 8a
 **Context:** API usage should be recorded even though there is no usage UI yet.
-**Decision:** An `ApiUsageLog` store records entry ID, date, provider, model, input and output tokens, and `rawUsage`: whatever usage fields the provider returned, such as cache or reasoning tokens.
+**Decision:** An `ApiUsageLog` store records entry ID, date, provider, model, input and output tokens, and numeric provider usage fields in `rawUsage`. OpenAI records the top-level token counts and maps cached prompt tokens to `cache_read_input_tokens`. OpenAI reasoning-token details (`completion_tokens_details`) are omitted (D-109).
 **Alternatives:** Not recorded.
 **Consequences:** No pruning. At one user's scale, years of daily entries stay small.
 
@@ -955,11 +955,11 @@ Entries written before this log existed have no dates. New entries include a **D
 
 ### D-104 — OpenAI provider as a dedicated sub-phase, not folded into eval
 **Type:** Technical
-**Status:** Planned, not built
+**Status:** Current
 **Date:** 2026-11-03
-**Phase:** 8d-3 (scheduled here; not yet built)
+**Phase:** 8d-3 (scheduled), 8d-3b (implemented)
 **Context:** 8d-3 implements Anthropic only. `getProvider('openai')` throws a "not implemented" error until a later phase adds it. Q: when and how should it land?
-**Decision:** OpenAI is implemented in a dedicated sub-phase sibling to 8d-3, scoped to `lib/ai/openaiProvider.ts`, the `getProvider` routing branch, the OpenAI provider-id constant already in `providerConfig.ts`, the `input_schema`→`parameters` mapping (D-103), and `fetch`-stubbed unit tests. The AI evaluation set is the likely trigger for scheduling it, but provider implementation and eval design stay separate phases. Scheduling is a build-plan edit and goes through the human (AGENTS.md).
+**Decision:** OpenAI is implemented in a dedicated sub-phase sibling to 8d-3, scoped to `lib/ai/openaiProvider.ts`, the `getProvider` routing branch, the OpenAI provider-id constant in `providerConfig.ts`, the `input_schema`→`parameters` mapping (D-103), and `fetch`-stubbed unit tests. The AI evaluation set is the likely trigger for scheduling it, but provider implementation and eval design stay separate phases. Scheduling is a build-plan edit and goes through the human (AGENTS.md).
 **Alternatives:** Folding OpenAI into the eval phase (couples a mechanical task to an open-ended design effort) — rejected.
 **Consequences:** When a second provider is added, the wire-format translation is bounded, independently reviewable, and schema-free (D-035).
 
@@ -981,7 +981,7 @@ Entries written before this log existed have no dates. New entries include a **D
 **Context:** This is a cross-phase interface consumed by 8d-5. Per the 8d-2 retrospective, cross-phase interfaces need a durable D-entry. Builds on D-059, D-067, D-068, D-035, D-092, D-058.
 **Decision:**
 - `AIProvider.extract(request: ExtractionRequest, config: { model: string; apiKey: string }): Promise<RawExtractionResult>` where `RawExtractionResult = { events: unknown; usage: UsageData | null }`. `events` is `unknown` because the model response is untrusted until validated (§5). `usage` is `null` only when the transport succeeded but the response carried no usage field.
-- `UsageData = { inputTokens: number; outputTokens: number; rawUsage: Record<string, number> }`. Mapping: `inputTokens` ← `usage.input_tokens`, `outputTokens` ← `usage.output_tokens`, `rawUsage` ← the full provider usage object (including cache/reasoning fields when present, per D-031).
+- `UsageData = { inputTokens: number; outputTokens: number; rawUsage: Record<string, number> }`. Anthropic maps `usage.input_tokens` and `usage.output_tokens` to `inputTokens` and `outputTokens` and retains its usage object in `rawUsage`. OpenAI maps `prompt_tokens` and `completion_tokens` to those counts and records the top-level token counts and mapped cache field in `rawUsage`. OpenAI reasoning-token details (`completion_tokens_details`) are omitted (D-031, D-109).
 - `runExtraction(params: { entryId: string; request: ExtractionRequest; settings: Settings; database?: GardenDB }): Promise<ExtractedEvent[]>` is the orchestration seam in `lib/orchestrator/ai.ts`. It logs usage before validation (D-067) so a billed call is never lost on a validation failure. `ApiUsageLog.date` is the call timestamp (`new Date().toISOString()`), not the entry date, because the log records a billing event at a point in time.
 - The provider does the network call only (no DB, no validation), mirroring the weather split (I-3).
 **Alternatives:** `extract(entryText, roster, openProblems)` builds the request internally — rejected, duplicates 8d-2's responsibility (D-035); logging and validating inside the provider — rejected, breaks I-3.
@@ -996,6 +996,17 @@ Entries written before this log existed have no dates. New entries include a **D
 **Decision:** `resolveExtractedEvents(events, roster, labelMap, entryDate)` returns one pending review per event, preserving input order and `extracted` unchanged. Each review has a fresh nanoid, no edits, and a null instance ID until 8e-3. Crop resolution uses exact trimmed lowercase comparison (D-062), with the first roster match winning; general events skip crop resolution. Problem resolution uses own label-map keys uniformly across event types (D-063), with unknown names/labels resolving to null. Raw labels remain in `extracted` only, never in resolved fields. The required `EventReview.resolvedDate: string` keeps a valid `YYYY-MM-DD` in the entry's calendar year; null, invalid, and outside-year dates fall back to `entryDate`.
 **Alternatives:** Rewriting `extracted.eventDate` loses the original model output; recomputing at commit duplicates resolution logic. A rolling date window can mismatch the entry-year instance lookup. Passing the entire entry adds unused input.
 **Consequences:** 8e-3 reads the resolved year for instance lookup; 8e-5 uses it for `CropEvent.date`/`year` (D-026). The function performs no network or database access. The embedded stored review shape changes, but no built phase writes a `PendingExtraction` until 8d-5. For 8d-4, open the installed app after pulling the branch and confirm normal operation; no database wipe is needed unless a `PendingExtraction` was manually inserted via devtools (human clarification, PR #78, 2026-11-09). No store, index, version, or migration changes.
+
+
+### D-109 — OpenAI extraction wire format and usage mapping
+**Type:** Technical
+**Status:** Draft for review
+**Date:** 2026-11-18
+**Phase:** 8d-3b
+**Context:** OpenAI Chat Completions uses a different tool definition, JSON-encoded tool arguments, and nested usage details (D-031, D-103, D-104, D-106).
+**Decision:** Send one request to `/v1/chat/completions` with Bearer authentication and force the requested function. Copy the system and user messages verbatim. Carry the tool name and description through, and send `input_schema` verbatim as the function's `parameters`. Parse the first tool call's JSON arguments in a guard. Missing or malformed arguments yield undefined events alongside any usage so the runner logs usage before validation (D-067). Map `prompt_tokens` and `completion_tokens` to normalized input and output counts. Retain those counts and `total_tokens` in `rawUsage`, and map `prompt_tokens_details.cached_tokens` to `cache_read_input_tokens` when present. Omit other nested usage details.
+**Alternatives:** Throwing on malformed arguments would lose billed usage. Retaining the nested usage details would require changing the stored field type.
+**Consequences:** Both providers use the existing numeric usage contract and stay behind the same orchestration interface (D-035, D-106).
 
 ---
 

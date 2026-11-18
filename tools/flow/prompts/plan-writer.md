@@ -103,6 +103,7 @@ PLAN-WRITER: NEEDS-HUMAN
 ```
 
 Use `PLAN-WRITER: NEEDS-HUMAN` if you cannot complete the plan because the build plan entry is too
-ambiguous to plan from, required information is not available in the repo, or a decision is needed
-that the human must make before planning can continue. Before the marker, state clearly what
-information or decision is needed and why you cannot proceed without it.
+ambiguous to plan from, required information is not available in the repo, a decision is needed
+that the human must make before planning can continue, or **§7 still contains any entry not yet
+marked resolved**. Before the marker, state clearly what information or decision is needed and why
+you cannot proceed without it.

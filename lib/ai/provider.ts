@@ -1,6 +1,7 @@
 import type { ExtractionRequest } from './requestBuilder'
-import { PROVIDER_ID_ANTHROPIC } from './providerConfig'
+import { PROVIDER_ID_ANTHROPIC, PROVIDER_ID_OPENAI } from './providerConfig'
 import { AnthropicProvider } from './anthropicProvider'
+import { OpenAIProvider } from './openaiProvider'
 
 export interface UsageData {
   inputTokens: number
@@ -31,6 +32,9 @@ export class StubAIProvider implements AIProvider {
 export function getProvider(providerId: string): AIProvider {
   if (providerId === PROVIDER_ID_ANTHROPIC) {
     return new AnthropicProvider()
+  }
+  if (providerId === PROVIDER_ID_OPENAI) {
+    return new OpenAIProvider()
   }
   throw new Error(`AI provider not implemented: ${providerId}`)
 }
