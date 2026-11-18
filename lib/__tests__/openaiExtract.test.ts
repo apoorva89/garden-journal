@@ -184,4 +184,15 @@ describe('runExtraction with OpenAI', () => {
     expect(await getLogs()).toEqual([])
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
+
+  it('logs zero token counts when the usage field is present but empty', async () => {
+    respond({ ...VALID_TOOL_RESPONSE, usage: {} })
+    await expect(run()).resolves.toEqual(VALID_EVENTS)
+
+    const logs = await getLogs()
+    expect(logs).toHaveLength(1)
+    expect(logs[0]).toMatchObject({ inputTokens: 0, outputTokens: 0 })
+    expect(logs[0].rawUsage).toEqual({})
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
 })
