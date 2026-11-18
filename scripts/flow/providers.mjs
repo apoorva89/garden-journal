@@ -41,12 +41,14 @@ export function providerCommand({ provider, role, plan, model, writableRoots }) 
         '(run: git rev-parse --path-format=absolute --git-common-dir)',
       );
     }
-    // network_access=true opens all outbound traffic for impl roles, not just localhost.
-    // Writable .git exposes hooks that run unsandboxed post-sandbox (e.g. on checkout).
-    // Both are acceptable for implementer/fix-agent; do not apply to review or writing roles.
-    const implFlags = isImpl ? [
+    // network_access=true opens all outbound traffic, not just localhost.
+    // question-resolver needs it to reach api.github.com via gh, but doesn't commit.
+    // Writable .git exposes hooks that run unsandboxed post-sandbox (e.g. on checkout);
+    // limit writable_roots to roles that actually commit.
+    const needsNetwork = isImpl || role === 'question-resolver';
+    const implFlags = needsNetwork ? [
       '-c', 'sandbox_workspace_write.network_access=true',
-      '-c', `sandbox_workspace_write.writable_roots=${JSON.stringify(writableRoots)}`,
+      ...(isImpl ? ['-c', `sandbox_workspace_write.writable_roots=${JSON.stringify(writableRoots)}`] : []),
     ] : [];
     return [
       'codex', 'exec',
