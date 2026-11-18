@@ -48,7 +48,7 @@ Phases that are Done are listed first. Order numbers apply to phases not yet bui
 | — | schema-guard | Runtime startup schema check | — | Done |
 | — | 8d-3 | Live extraction call | 8d-2 | Done |
 | — | 8d-4 | Extracted event resolution | 8b, 8d-2 | Done |
-| 1 | 8d-3b | OpenAI provider | 8d-3 | Not started |
+| — | 8d-3b | OpenAI provider | 8d-3 | Done |
 | 2 | 8d-5 | Extraction wiring and read-only cards | 8d-1, 8d-3, 8d-4 | Not started |
 | 3 | 8e-1 | Review outcomes and event photos schema | 8b | Not started |
 | 4 | 8e-2 | Card states and Done gate | 8d-5 | Not started |
@@ -304,7 +304,7 @@ Done when (tests stub the network):
 
 ### 8d-3b: OpenAI provider
 
-**Status:** Not started. **Depends on:** 8d-3.
+**Status:** Done. **Depends on:** 8d-3.
 **Decisions:** `DECISIONS.md` D-104, D-103, D-035, D-059.
 **Architecture:** `ARCHITECTURE.md` §5, §9.
 
