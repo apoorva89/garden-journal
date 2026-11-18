@@ -152,9 +152,32 @@ None.
 
 ## 9. Progress
 
-- 2026-11-18 09:55 PST — AC-1–AC-9 and AC-12 were written first and failed because the factory rejected OpenAI. Implemented the adapter and routing. All 149 Vitest tests passed, including the existing provider literal scan (AC-10).
-- 2026-11-18 09:56 PST — Lint, standalone typecheck, Next.js static export, and service worker build passed.
+The original red/green entries below expand the implementation progress record. Commit `3839d3a` contains the tests and implementation together, so Git history cannot independently verify their order.
 
+- [x] 2026-11-18 17:55Z: AC-1 written before implementation. The factory rejected OpenAI before the test could reach the new behavior.
+- [x] 2026-11-18 17:55Z: AC-1 passed after adapter and factory routing implementation.
+- [x] 2026-11-18 17:55Z: AC-2 written before implementation. The factory rejected OpenAI before the test could reach the new behavior.
+- [x] 2026-11-18 17:55Z: AC-2 passed after adapter and factory routing implementation.
+- [x] 2026-11-18 17:55Z: AC-3 written before implementation. The factory rejected OpenAI before the test could reach the new behavior.
+- [x] 2026-11-18 17:55Z: AC-3 passed after adapter and factory routing implementation.
+- [x] 2026-11-18 17:55Z: AC-4 written before implementation. The factory rejected OpenAI before the test could reach the new behavior.
+- [x] 2026-11-18 17:55Z: AC-4 passed after adapter and factory routing implementation.
+- [x] 2026-11-18 17:55Z: AC-5 written before implementation. The factory rejected OpenAI before the test could reach the new behavior.
+- [x] 2026-11-18 17:55Z: AC-5 passed after adapter and factory routing implementation.
+- [x] 2026-11-18 17:55Z: AC-6 written before implementation. The factory rejected OpenAI before the test could reach the new behavior.
+- [x] 2026-11-18 17:55Z: AC-6 passed after adapter and factory routing implementation.
+- [x] 2026-11-18 17:55Z: AC-7 written before implementation. The factory rejected OpenAI before the test could reach the new behavior.
+- [x] 2026-11-18 17:55Z: AC-7 passed after adapter and factory routing implementation.
+- [x] 2026-11-18 17:55Z: AC-8 written before implementation. The factory rejected OpenAI before the test could reach the new behavior.
+- [x] 2026-11-18 17:55Z: AC-8 passed after adapter and factory routing implementation.
+- [x] 2026-11-18 17:55Z: AC-9 written before implementation. The factory rejected OpenAI before the test could reach the new behavior.
+- [x] 2026-11-18 17:55Z: AC-9 passed after adapter and factory routing implementation.
+- [x] 2026-11-18 17:55Z: AC-12 written before implementation. The factory rejected OpenAI before the test could reach the new behavior.
+- [x] 2026-11-18 17:55Z: AC-12 passed after adapter and factory routing implementation.
+- [x] 2026-11-18 17:55Z: AC-10 passed the existing structural scan with zero forbidden provider/model literals.
+- [x] 2026-11-18 17:56Z: Lint, standalone typecheck, Next.js static export, and service worker build passed.
+- [x] 2026-11-18 18:55Z: Review follow-up expanded AC-11 with an informational event-quality table and raw-usage assertions. The unit suite also verifies that a present but empty usage object logs one record with zero token counts and empty raw usage. All 150 Vitest tests passed.
+- [ ] 2026-11-18 18:55Z: AC-11 real API verification pending. Playwright discovered the expanded spec and skipped it because `OPENAI_API_KEY` was absent.
 
 ## 10. Surprises & discoveries
 
@@ -187,6 +210,8 @@ The durable `DECISIONS.md` entry to promote at merge is drafted here for review:
 
 - 2026-11-18 — Use the flow implementer handoff and the recorded human confirmations in §11 as approval evidence. The handoff refers to this exact plan as approved. The `Approved:` line stays as supplied, consistent with other completed flow plans. Alternative considered: pause for a second confirmation of the same revision.
 - 2026-11-18 — Use D-109 for the OpenAI wire-format decision and mark it draft for review, so promotion can happen at merge as specified in §3. Alternative considered: mark the new entry current immediately.
+
+- 2026-11-18 — Review clarification on D-8. The human-approved 8d-5 browser-origin CORS acceptance item is already in the build plan. The 8d-3b status flip described in §3 and §6 is a separate end-of-run workflow step.
 
 ## 12. Outcomes & retrospective
 
