@@ -178,12 +178,22 @@ The original red/green entries below expand the implementation progress record. 
 - [x] 2026-11-18 17:56Z: Lint, standalone typecheck, Next.js static export, and service worker build passed.
 - [x] 2026-11-18 18:55Z: Review follow-up expanded AC-11 with an informational event-quality table and raw-usage assertions. The unit suite also verifies that a present but empty usage object logs one record with zero token counts and empty raw usage. All 150 Vitest tests passed.
 - [ ] 2026-11-18 18:55Z: AC-11 real API verification pending. Playwright discovered the expanded spec and skipped it because `OPENAI_API_KEY` was absent.
+- [x] 2026-11-18: Reviewer A (round 1) reviewed sha `3839d3a` — FLOW-VERDICT APPROVED. Non-blocking: TDD ordering unverifiable from squashed commit; §9 less granular than template format; `mapUsage` empty-object edge case untested.
+- [x] 2026-11-18: Reviewer B (round 1) reviewed sha `3839d3a` — FLOW-VERDICT BLOCKING. Blocking: `scripts/flow/providers.mjs` and `tests/flow/providers.test.mjs` present in diff but absent from plan §3. Non-blocking: `BUILD_PLAN.md` content addition exceeds described change; D-109 status not promoted; AC-11 skipped.
+- [x] 2026-11-18: Human reviewer (round 1) reviewed sha `3839d3a` — FLOW-VERDICT BLOCKING. Blocking: `openai-live.spec.ts` too thin compared to `anthropic-live.spec.ts`. Non-blocking: browser-origin CORS deferred to 8d-5.
+- [x] 2026-11-18 18:55Z: Fix round. Reviewer B blocking-1 closed by confirming `origin/main` already contained PR #91 (`4b27763`) — no code change needed. Human B-1 resolved by expanding `openai-live.spec.ts` (commit `d58f020`). Reviewer A NB-1/2 resolved by expanding §9 (commit `c2a0da5`). Reviewer A NB-3 resolved by adding empty-usage unit test (commit `d58f020`).
+- [x] 2026-11-18: AC-11 live integration run verified by human with real `OPENAI_API_KEY` (gpt-4o-mini). All 12 quality checks passed; one `ApiUsageLog` recorded with `inputTokens > 0`, `outputTokens > 0`, and `rawUsage` fields present.
+- [x] 2026-11-18: Reviewer A (round 2) reviewed sha `c2a0da5` — FLOW-VERDICT APPROVED. Non-blocking: TDD ordering still unverifiable; AC-11 unrun at review time (subsequently verified by human); added coverage sound.
+- [x] 2026-11-18: Reviewer B (round 2) reviewed sha `c2a0da5` — FLOW-VERDICT APPROVED. Previous blocking finding resolved by base-branch alignment. Non-blocking: §3 `BUILD_PLAN.md` description inaccurate (§§1–8 are approved contract); D-109 promotion pending merge; AC-11 still needs live run.
+- [x] 2026-11-18: Human reviewer approved sha `c2a0da5` — FLOW-VERDICT APPROVED. Phase complete pending D-109 promotion at merge.
 
 ## 10. Surprises & discoveries
 
 - 2026-11-18 09:56 PST — AC-11 remains unverified. Playwright discovered the live test and skipped it because `OPENAI_API_KEY` was absent. A run with the key supplied to the test environment is needed.
 
 - 2026-11-18 09:57 PST — E2E verification blocked in this environment. The dev server reported `EMFILE: too many open files, watch` and returned HTTP 404 on the journal route. Serving the production export through a temporary loopback server returned HTTP 200, but Chromium repeatedly exited at launch with `bootstrap_check_in … Permission denied (1100)`. Browser assertions could not run. Rerun in CI or another environment that permits Playwright browser launch.
+- 2026-11-18: Reviewer B (round 1) flagged `scripts/flow/providers.mjs` and `tests/flow/providers.test.mjs` as out-of-scope files in the diff. Resolved 2026-11-18: `origin/main` already contained PR #91 (`4b27763`); `git diff origin/main...HEAD` showed only the 10 files from §3. No code change required.
+- 2026-11-18: Human reviewer (round 1) flagged `openai-live.spec.ts` as too thin compared to `anthropic-live.spec.ts`. Resolved 2026-11-18: spec expanded with multi-event entry, quality table, console output, and rawUsage assertions in commit `d58f020`.
 
 ## 11. Decision log
 
@@ -212,7 +222,96 @@ The durable `DECISIONS.md` entry to promote at merge is drafted here for review:
 - 2026-11-18 — Use D-109 for the OpenAI wire-format decision and mark it draft for review, so promotion can happen at merge as specified in §3. Alternative considered: mark the new entry current immediately.
 
 - 2026-11-18 — Review clarification on D-8. The human-approved 8d-5 browser-origin CORS acceptance item is already in the build plan. The 8d-3b status flip described in §3 and §6 is a separate end-of-run workflow step.
+- 2026-11-18: Reviewer B blocking-1 (round 1) closed as non-issue. Local `main` had not yet received PR #91; `origin/main` already contained `4b27763`. `git diff origin/main...HEAD` showed only the 10 expected §3 files. Alternative considered: splitting commit `4b27763` onto a separate branch — unnecessary once origin/main alignment was confirmed.
 
 ## 12. Outcomes & retrospective
 
-To be filled in at completion by the retro-writer.
+### What went well
+
+- The `AIProvider` abstraction from 8d-3 (D-106) made OpenAI a purely additive change: `runExtraction`, `lib/orchestrator/ai.ts`, and all existing paths were untouched.
+- All 10 unit acceptance criteria (AC-1 through AC-9, AC-12) passed on the first implementation, sharing a single failing reason pre-implementation (`getProvider('openai')` throwing `not implemented`).
+- The D-102 structural scan (AC-10) stayed at zero violations with no extra effort, confirming the sanctioned-literal scheme scales to a second provider.
+- CI passed on the first run after the fix commits (test: 3m4s, deploy: 9s).
+
+### What was harder than expected
+
+- TDD ordering cannot be reconstructed from git history because all tests and implementation landed in the single squashed commit `3839d3a`. The template's "failing-test commit before passing-source commit" is unverifiable post hoc; both reviewer A rounds flagged this.
+- Chromium sandbox errors (`bootstrap_check_in … Permission denied 1100`) blocked browser e2e testing in both the step 4 and step 7 (Codex) environments; a second fix-agent run with Claude was required. CI provided the authoritative e2e gate.
+- The question-resolver (Codex) could not reach `api.github.com` in step 3.5 pass 1; a second pass with Claude was required, caused by the network-access fix in `providers.mjs` (PR #91) not yet being applied at the start of the run.
+- AC-11 required a human-supplied API key for final verification; the phase was not fully confirmed until after the human ran the live integration test on 2026-11-18.
+- Reviewer B's round-1 blocking finding was a false positive: the feature branch carried commit `4b27763` before PR #91 merged to main, so local `main` was stale and the diff appeared to include out-of-scope files. Diagnosing the issue and re-running the reviewer required an extra round. Running `git fetch origin main` before branch creation would have prevented this.
+
+### Process changes
+
+1. **Plan-writer: enforce NEEDS-HUMAN when §7 has open decisions.** Edit `.flow/prompts/plan-writer.md` (generated at step 0 from the AI-workflow tool): add a check at the end of the output rules stating that if §7 contains any entry not yet marked resolved, the plan-writer must emit `PLAN-WRITER: NEEDS-HUMAN` rather than `PLAN-WRITER: DONE`. Source: orchestration-break 2026-11-17T22:23:26Z [step 1].
+
+2. **Plan template: prohibit §9 edits during planning.** Edit `docs/exec-plans/TEMPLATE.md`, §9 section: add an explicit rule at the top — "§9 must not be pre-filled or edited by the plan-writer or plan-reviewer. It is the implementer's living checklist and must remain empty until implementation begins." Source: orchestration-breaks 2026-11-17T22:23:26Z and 2026-11-17T23:00:11Z [steps 1–2].
+
+3. **Runbook: add user-confirmation gate between steps 1 and 2.** Edit `docs/flow/RUNBOOK.md`: after the step 1 (plan-writer) instructions, add an explicit "STOP — ask the user for confirmation before proceeding to step 2" gate, mirroring confirmation gates already present at other steps. Source: orchestration-break 2026-11-17T23:00:11Z [step 2].
+
+4. **Runbook: note Codex/Chromium sandbox limitation for step 7.** Edit `docs/flow/RUNBOOK.md`, step 7 (fix-agent) section: add a note that the Codex fix-agent cannot launch Chromium (sandbox permission denied 1100) and that Claude should be substituted as the fix-agent when e2e browser testing is required. Source: orchestration-break 2026-11-18T18:58:37Z [step 7].
+
+5. **Runbook: prohibit orchestrator from soliciting PR merge.** Edit `docs/flow/RUNBOOK.md`, step 7.5 section: add an explicit prohibition — "Do not prompt the human to merge the PR. Merging is the human's decision. The orchestrator reports completion and stops." Source: orchestration-break 2026-11-18T19:29:13Z [step 7.5].
+
+7. **Runbook: fetch `origin/main` before creating the feature branch.** Edit `docs/flow/RUNBOOK.md`, Step 0.6: add `git fetch origin main` before the `git checkout -b` command to ensure the branch starts from the latest remote state. This prevents out-of-scope commits from appearing in the PR diff when unrelated PRs merge between the last fetch and branch creation. Source: Reviewer B round-1 false positive (2026-11-18).
+
+6. **Question-resolver Codex network access — applied.** `scripts/flow/providers.mjs` was updated in PR #91 (`4b27763`) to grant `question-resolver` `network_access` without `writable_roots`. This addresses orchestration-break 2026-11-17T23:03:33Z [step 3.5 pass 1]. No further change needed; validate in next run.
+
+### Workflow evidence
+
+**Reviewer findings**
+
+- TDD ordering unverifiable from squashed commit `3839d3a`. Detector: reviewer A (both rounds, NB-1). Severity: non-blocking. Resolution: disclosed transparently in §9 and fix report; not correctable post hoc. Evidence: PR comment round 1 reviewer A NB-1; round 2 NB-1.
+- §9 progress entries less granular than template format. Detector: reviewer A (round 1, NB-2). Severity: non-blocking. Resolution: fixed — §9 expanded to per-criterion checklist in commit `c2a0da5`. Evidence: §9 entries 2026-11-18; fix report "Reviewer A NB-1/2." **VERIFIED**
+- `mapUsage` empty-object edge case untested. Detector: reviewer A (round 1, NB-3). Severity: non-blocking. Resolution: fixed — test added in commit `d58f020`. Evidence: fix report "Reviewer A NB-3." **VERIFIED**
+- Out-of-scope files (`scripts/flow/providers.mjs`, `tests/flow/providers.test.mjs`) in diff. Detector: reviewer B (round 1, B-1). Severity: blocking. Resolution: closed without code change — `origin/main` already contained PR #91; `git diff origin/main...HEAD` showed only the 10 §3 files. Evidence: §10 entry 2026-11-18; fix report "Reviewer B blocking 1." **VERIFIED**
+- `BUILD_PLAN.md` §3 description inaccurate (content addition not described). Detector: reviewer B (round 1, NB-1; round 2, NB-1). Severity: non-blocking. Resolution: documented in §11; §§1–8 are the approved contract and cannot be corrected mid-phase. Evidence: §11 "Review clarification on D-8." **VERIFIED**
+- D-109 status still `Draft for review` at PR open. Detector: reviewer B (both rounds, NB-2). Severity: non-blocking. Resolution: deferred — to be promoted at merge per plan §3. Evidence: §11 D-109 entry; reviewer B round 2 NB-2. **VERIFIED**
+- `openai-live.spec.ts` too thin compared to `anthropic-live.spec.ts`. Detector: human reviewer (round 1, B-1). Severity: blocking. Resolution: fixed — spec expanded with multi-event entry, quality table, console output, and rawUsage assertions in commit `d58f020`. Evidence: fix report "Human B-1." **VERIFIED**
+- Browser-origin CORS not established by AC-11 (Node-only). Detector: human reviewer (round 1, N-1). Severity: non-blocking. Resolution: deferred to 8d-5 on-device check per D-8. Evidence: §11 D-8; fix report "Human N-1." **VERIFIED**
+
+**Human decisions**
+
+- AC-11 live integration verified manually with real `OPENAI_API_KEY` on 2026-11-18. Decision: accept human-run result as phase verification for AC-11. Rationale: CI cannot supply the key; the test guard correctly skips when absent; human ran `gpt-4o-mini` with 12/12 quality checks passed and usage log confirmed. Outcome: AC-11 checkbox closed. Source: human comment "AC-11 live integration run verified" (2026-11-18). **VERIFIED**
+- Browser-origin CORS deferred to 8d-5 for both OpenAI and Anthropic. Decision: do not attempt CORS verification in this phase. Rationale: Node does not enforce CORS; Sync UI wire-up happens in 8d-5. Outcome: BUILD_PLAN.md 8d-5 "Done when" updated with CORS check item. Source: §11 D-8; human reviewer round 1 N-1 comment. **VERIFIED**
+
+**Pre-merge manual testing**
+
+- AC-11 (live OpenAI integration, `gpt-4o-mini`, 2026-11-18): passed. One real `fetch`, schema-valid events, one `ApiUsageLog` with `inputTokens > 0`, `outputTokens > 0`, `provider: 'openai'`, correct model. All 12 quality checks passed. No issues found. **VERIFIED** (human comment 2026-11-18).
+- CORS browser-origin check (I-12, D-8): deferred to 8d-5. Node does not enforce CORS; sync UI wire-up not yet built. **INFERRED** from §11 D-8 and human reviewer N-1 comment.
+
+**Verification coverage**
+
+- Unit tests (Vitest, 150 tests): passed. **VERIFIED** (§9 entry 2026-11-18 18:55Z; fix report).
+- Integration test (AC-11, `npm run test:integration`): passed — 1 real request, 12/12 quality checks. **VERIFIED** (human comment 2026-11-18).
+- Lint: passed. **VERIFIED** (§9 entry 2026-11-18 17:56Z).
+- Typecheck (`npx tsc --noEmit`): passed. **VERIFIED** (§9 entry 2026-11-18 17:56Z, "standalone typecheck").
+- Build (Next.js static export + service worker): passed. **VERIFIED** (§9 entry 2026-11-18 17:56Z).
+- CI test gate: passed (3m4s). **VERIFIED** (https://github.com/apoorva89/garden-journal/actions/runs/44377081480/job/135058975779).
+- CI deploy gate: passed (9s). **VERIFIED** (https://github.com/apoorva89/garden-journal/actions/runs/44377081480/job/135060977286).
+- E2E browser tests (Playwright): **UNKNOWN** — Chromium exited at launch with `bootstrap_check_in … Permission denied (1100)` in both Codex step-4 and step-7 environments. CI test gate is the authoritative e2e gate for this phase. Gap accepted at merge.
+
+**Workflow friction**
+
+- Codex fix-agent unable to launch Chromium at step 7 (same sandbox limitation as step 4). Impact: e2e browser assertions unrunnable in both environments; CI provided the authoritative gate. Source: §10 entry 2026-11-18 09:57 PST; orchestration-break 2026-11-18T18:58:37Z.
+- question-resolver (Codex) could not reach `api.github.com` at step 3.5 pass 1. Impact: GitHub issue creation failed; second pass with Claude required. Source: orchestration-break 2026-11-17T23:03:33Z.
+- Plan-writer emitted DONE with 6 open decisions in §7 at step 1; should have emitted NEEDS-HUMAN. Impact: extra planning-loop iteration. Source: orchestration-break 2026-11-17T22:23:26Z.
+- Plan-reviewer ran without user confirmation at step 2. Impact: minor; runbook gate skipped. Source: orchestration-break 2026-11-17T23:00:11Z.
+- Orchestrator prompted human to merge at step 7.5. Impact: minor UX violation against runbook rules. Source: orchestration-break 2026-11-18T19:29:13Z.
+
+**Improvements and follow-through**
+
+- Plan-writer NEEDS-HUMAN enforcement for open §7 decisions (Process changes item 1). Status: proposed. No subsequent run evidence yet.
+- §9 pre-fill prohibition in `docs/exec-plans/TEMPLATE.md` (Process changes item 2). Status: proposed. No subsequent run evidence yet.
+- User-confirmation gate between steps 1 and 2 in `docs/flow/RUNBOOK.md` (Process changes item 3). Status: proposed. No subsequent run evidence yet.
+- Codex/Chromium note for step 7 in `docs/flow/RUNBOOK.md` (Process changes item 4). Status: proposed. No subsequent run evidence yet.
+- Orchestrator merge-solicitation prohibition in `docs/flow/RUNBOOK.md` (Process changes item 5). Status: proposed. No subsequent run evidence yet.
+- question-resolver Codex network access fix (Process changes item 6). Status: applied (PR #91, commit `4b27763`). Not yet validated in a subsequent full run.
+- `git fetch origin main` before branch creation in Step 0.6 (Process changes item 7). Status: proposed. No subsequent run evidence yet.
+
+**Feature outcomes**
+
+- OpenAI provider (`lib/ai/openaiProvider.ts`) shipped with full wire-format translation: `input_schema` → `parameters` (D-103), verbatim message copying (I-16), `Bearer` auth, usage mapping with cache parity (D-5), and tool-arguments JSON-string parse without usage loss (D-1). Commit `3839d3a`.
+- Usage mapping decision (D-5, option b): top-level numeric fields plus `cache_read_input_tokens` ← `prompt_tokens_details?.cached_tokens`; other object-valued entries dropped; `Record<string, number>` contract preserved. Recorded as D-109 in `docs/DECISIONS.md` (§11 D-109 entry); to be promoted from `Draft for review` to `Current` at merge.
+- Verification: 150 unit tests passed, 1 live integration test passed (12/12 quality checks), lint/typecheck/build clean, CI passed. E2E browser tests deferred to CI gate due to Chromium sandbox limitation.
+- Deferred manual checks: (1) CORS browser-origin verification for both providers tracked in `docs/BUILD_PLAN.md` 8d-5 "Done when" list; (2) D-109 promotion from `Draft for review` to `Current` at merge.
