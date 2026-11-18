@@ -60,12 +60,16 @@ for (const role of roles) {
     assert.ok(!command.includes('--dangerously-bypass-approvals-and-sandbox'));
     assert.ok(!command.includes('--model'));
 
-    // Scoping guard: impl roles get extra flags; review and writing roles must not.
+    // Scoping guard: impl roles get network + writable_roots; question-resolver gets
+    // network only (needs gh api.github.com access but never commits); others get neither.
     const hasNetworkAccess = command.some((arg) => arg.includes('network_access'));
     const hasWritableRoots = command.some((arg) => arg.includes('writable_roots'));
     if (implRoles.includes(role)) {
       assert.ok(hasNetworkAccess, 'impl role must have network_access');
       assert.ok(hasWritableRoots, 'impl role must have writable_roots');
+    } else if (role === 'question-resolver') {
+      assert.ok(hasNetworkAccess, 'question-resolver must have network_access for gh');
+      assert.ok(!hasWritableRoots, 'question-resolver must not have writable_roots');
     } else {
       assert.ok(!hasNetworkAccess, 'non-impl role must not have network_access');
       assert.ok(!hasWritableRoots, 'non-impl role must not have writable_roots');
