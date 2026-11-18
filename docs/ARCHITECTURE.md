@@ -39,8 +39,9 @@ The data and logic layer. UI does not appear here.
 | `lib/ai/extractionSpec.ts` | One Zod schema for extracted events; the model's tool schema and the TypeScript type are both derived from it. See §5. |
 | `lib/ai/requestBuilder.ts` | Turns a journal entry and its context into a provider-agnostic `ExtractionRequest` (system prompt, user message, tool definition) and a `labelMap` mapping ephemeral problem labels to database IDs. Pure function; no network or database access. See §5. |
 | `lib/ai/eventResolver.ts` | Resolves validated events into pending reviews using roster names, problem labels, and the entry year; no database or network access. See §5. |
-| `lib/ai/provider.ts` | `AIProvider` interface (`extract(request, config) → RawExtractionResult`), `StubAIProvider`, and `getProvider(providerId)` factory. `RawExtractionResult` carries `events: unknown` (untrusted until validated) and `usage`. |
+| `lib/ai/provider.ts` | `AIProvider` interface (`extract(request, config) → RawExtractionResult`), `StubAIProvider`, and `getProvider(providerId)` factory for Anthropic and OpenAI. `RawExtractionResult` carries `events: unknown` (untrusted until validated) and `usage`. |
 | `lib/ai/anthropicProvider.ts` | `AnthropicProvider implements AIProvider`. Sends one forced-tool-call request to the Anthropic Messages API, parses the tool-use block into `events: unknown`, and maps the response usage object into `UsageData`. No DB access, no validation, no retries. |
+| `lib/ai/openaiProvider.ts` | `OpenAIProvider implements AIProvider`. Sends one forced function call to Chat Completions, parses tool arguments into `events: unknown`, and maps usage into `UsageData`. |
 | `lib/weatherSync.ts` | Open-Meteo client. Returns weather for a date and location; network errors return `null`. |
 | `lib/resizeImage.ts` | Downscales and re-encodes photos before storage. Used wherever photos are accepted. |
 
@@ -142,7 +143,7 @@ Entry text is untrusted input to the model: a pasted web page or a crafted note 
 3. If the provider returns and `usage` is non-null, writes one `ApiUsageLog` to IndexedDB via `addApiUsageLog` **before** validation, so a billed call is never lost (D-067).
 4. Validates `raw.events` against `z.array(ExtractedEventSchema)` and returns the parsed `ExtractedEvent[]`. A validation failure throws after the usage log has already been written.
 
-`AnthropicProvider` does the fetch only: it has no DB access and performs no validation (invariant I-3). The separation mirrors the weather split: `fetchWeatherForDate` is network-only, the orchestrator writes.
+`getProvider` selects Anthropic or OpenAI from Settings. Each adapter translates the extraction request into its own wire format. OpenAI maps `input_schema` to `parameters` (D-103). The adapters fetch and parse responses. Database access and validation belong to the orchestrator (invariant I-3). The separation mirrors the weather split: `fetchWeatherForDate` is network-only, the orchestrator writes.
 
 ### API keys and provider config
 

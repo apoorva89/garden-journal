@@ -1,4 +1,5 @@
 export const PROVIDER_ID_ANTHROPIC = 'anthropic'
+export const PROVIDER_ID_OPENAI = 'openai'
 
 export interface ProviderConfig {
   id: string

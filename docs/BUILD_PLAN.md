@@ -373,6 +373,7 @@ Done when:
 - A failed call saves no `PendingExtraction`, leaves the entry unsynced, and shows as failed on its row. The next Sync now makes a new attempt.
 - Each billed call produces exactly one `ApiUsageLog` record.
 - Weather is written for the entry whether or not extraction succeeds.
+- A direct browser-origin request to `https://api.openai.com/v1/chat/completions` from the installed PWA succeeds without a CORS error — confirmed on-device (manual check; closes Q-2 from 8d-3b, issue #93).
 
 ---
 
