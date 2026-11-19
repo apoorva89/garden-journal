@@ -13,7 +13,10 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], launchOptions: { args: ['--no-sandbox'] } },
+    },
     { name: 'webkit', use: { ...devices['iPhone 15'] } },
   ],
   webServer: {
