@@ -12,7 +12,7 @@ const opusRoles = new Set([
 ]);
 
 export const executionRoles = Object.freeze([
-  ...reviewRoles, ...writingRoles, ...implementationRoles, 'question-resolver',
+  ...reviewRoles, ...writingRoles, ...implementationRoles, 'question-resolver', 'portfolio-tracker',
 ]);
 
 export function providerCommand({ provider, role, plan, model, writableRoots }) {
@@ -78,6 +78,8 @@ export function providerCommand({ provider, role, plan, model, writableRoots }) 
       'Bash(npm run test:e2e)', 'Bash(npm run build)',
       'Bash(npx tsc *)',
     ];
+  } else if (role === 'portfolio-tracker') {
+    tools = ['Read', 'Edit(docs/portfolio-evidence.md)', 'Write(docs/portfolio-evidence.md)'];
   }
   const toolTypes = [...new Set(tools.map((tool) => tool.split('(')[0]))];
   return [
