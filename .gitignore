@@ -58,3 +58,4 @@ next-env.d.ts
 # private portfolio tracking (local only, never committed)
 docs/portfolio-evidence.md
 tools/flow/prompts/portfolio-tracker.md
+scripts/run-portfolio-tracker.sh
