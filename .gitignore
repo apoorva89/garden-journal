@@ -54,3 +54,7 @@ next-env.d.ts
 .flow/pr-reviewer-a-output.txt
 .flow/pr-reviewer-b-output.txt
 .flow/prompts/
+
+# private portfolio tracking (local only, never committed)
+docs/portfolio-evidence.md
+tools/flow/prompts/portfolio-tracker.md

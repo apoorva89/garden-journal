@@ -599,30 +599,6 @@ If `RETRO-WRITER: STOPPED`, address the stated blocker and re-run Step 8 before 
 
 
 
-
-## Step 8.2 — portfolio-tracker
-
-Run after `RETRO-WRITER: DONE` to extract resume candidates from this phase and update
-verification status for prior proposed entries.
-
-```bash
-node scripts/flow/run.mjs --provider "${FLOW_PROVIDER:-claude}" \
-  --role portfolio-tracker --plan "docs/exec-plans/active/<phase>-<slug>.md" \
-  --task "Plan: docs/exec-plans/active/<phase>-<slug>.md"
-```
-
-Check the outcome:
-
-```bash
-jq -r '.result' .flow/portfolio-tracker-run-latest.json | grep "^PORTFOLIO-TRACKER:"
-```
-
-If `PORTFOLIO-TRACKER: DONE`, proceed to Step 8.5. If `PORTFOLIO-TRACKER: STOPPED`, address the
-stated blocker and re-run before continuing. If neither value appears, log an orchestration break
-and stop.
-
----
-
 ## Step 8.5 — retro-reviewer (manual step)
 
 Tell the user to run the following command in their terminal:
