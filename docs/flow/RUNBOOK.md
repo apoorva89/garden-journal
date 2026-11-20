@@ -595,6 +595,8 @@ jq -r '.result' .flow/retro-writer-run-latest.json | grep "^RETRO-WRITER:"
 If `RETRO-WRITER: STOPPED`, address the stated blocker and re-run Step 8 before continuing. If
 `RETRO-WRITER: DONE`, proceed. If neither value appears, log an orchestration break and stop.
 
+**Optional:** If you maintain a local portfolio-tracker, run it now while the plan is still in `active/`.
+
 ---
 
 
