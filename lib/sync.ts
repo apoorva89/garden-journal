@@ -7,15 +7,13 @@ import {
 import type { GardenDB } from './db'
 import type { WeatherResult } from './weatherSync'
 import { fetchWeatherForDate } from './weatherSync'
-import type { AIProvider } from './ai/provider'
-import { StubAIProvider } from './ai/provider'
+import { runEntryExtraction } from './orchestrator/ai'
 
 export type WeatherStatus = 'pending' | 'fetching' | 'synced' | 'failed' | 'skipped'
 export type AIStatus = 'pending' | 'running' | 'failed' | 'review-pending' | 'skipped'
 
 export interface SyncOptions {
   weatherFetcher?: (date: string, lat: number, lon: number) => Promise<WeatherResult | null>
-  aiProvider?: AIProvider
   onProgress?: (entryId: string, step: 'weather' | 'ai', status: WeatherStatus | AIStatus) => void
   database?: GardenDB
 }
@@ -38,7 +36,6 @@ export async function runSync(options: SyncOptions = {}): Promise<void> {
 
 async function _runSync({
   weatherFetcher = fetchWeatherForDate,
-  aiProvider = new StubAIProvider(),
   onProgress,
   database,
 }: SyncOptions): Promise<void> {
@@ -85,8 +82,7 @@ async function _runSync({
       } else {
         onProgress?.(entry.id, 'ai', 'running')
         try {
-          await aiProvider.extract({ system: '', userMessage: entry.text, tool: { name: '', description: '', input_schema: { type: 'object', properties: {}, required: [] } } }, { model: '', apiKey: '' })
-          // Reached only if real provider is wired (8d-2+). Stub always throws.
+          await runEntryExtraction({ entry, settings: settings!, database })
           onProgress?.(entry.id, 'ai', 'review-pending')
         } catch {
           onProgress?.(entry.id, 'ai', 'failed')

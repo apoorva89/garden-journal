@@ -74,18 +74,34 @@ async function seedDb(
 async function seedPendingExtraction(
   page: Page,
   entryId: string,
+  withCard = false,
 ) {
   await page.evaluate(
-    (entryId) => {
+    ({ entryId, withCard }) => {
       return new Promise<void>((resolve, reject) => {
         const req = indexedDB.open('garden-journal', 1)
         req.onerror = () => reject(req.error)
         req.onsuccess = () => {
           const db = req.result
-          const tx = db.transaction('pendingExtractions', 'readwrite')
+          const tx = db.transaction(['pendingExtractions', 'cropTypes', 'cropEvents'], 'readwrite')
+          if (withCard) {
+            tx.objectStore('cropTypes').put({ id: 'tomato', name: 'Tomato', lessons: [] })
+            tx.objectStore('cropEvents').put({
+              id: 'problem', cropInstanceId: 'tomato-instance', date: '2026-06-01',
+              year: 2026, type: 'problem', notes: 'Spotted leaves', resolved: false,
+              linkedProblemId: null, photos: [], weatherC: null, weatherIcon: null,
+            })
+          }
           tx.objectStore('pendingExtractions').put({
             entryId,
-            events: [],
+            events: withCard ? [{
+              id: 'card', status: 'pending', resolvedCropTypeId: 'tomato',
+              resolvedLinkedProblemId: 'problem', resolvedInstanceId: null, resolvedDate: '2026-06-01',
+              extracted: {
+                eventType: 'fix', matchedRosterName: 'Raw crop', linkedProblemRef: 'P9',
+                notes: 'Removed spotted leaves', eventDate: null, nurseryName: null, variety: null,
+              },
+            }] : [],
             usage: { inputTokens: 100, outputTokens: 50 },
             createdAt: new Date().toISOString(),
           })
@@ -94,7 +110,7 @@ async function seedPendingExtraction(
         }
       })
     },
-    entryId,
+    { entryId, withCard },
   )
 }
 
@@ -585,5 +601,99 @@ test.describe('SyncSheet re-run: synced weather stays synced (issue #49 TC-2)', 
 
     // The orchestrator skips already-synced entries — no second weather request should be made
     expect(weatherCallCount).toBe(1)
+  })
+})
+
+async function storedReviewData(page: Page) {
+  return page.evaluate(() => new Promise((resolve, reject) => {
+    const request = indexedDB.open('garden-journal', 1)
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const db = request.result
+      const tx = db.transaction(['journalEntries', 'apiUsageLogs', 'pendingExtractions'])
+      const entries = tx.objectStore('journalEntries').getAll()
+      const logs = tx.objectStore('apiUsageLogs').getAll()
+      const extractions = tx.objectStore('pendingExtractions').getAll()
+      tx.oncomplete = () => {
+        db.close()
+        resolve({ entries: entries.result, logs: logs.result, extractions: extractions.result })
+      }
+      tx.onabort = () => reject(tx.error)
+    }
+  }))
+}
+
+test.describe('Read-only extraction review', () => {
+  const id = 'review-entry'
+  const entryText = 'Checked tomato plants today'
+  const reviewUrl = `${BASE}/journal/sync/?id=${id}`
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto(`${BASE}/journal/`)
+    await seedDb(page, [{ id, date: '2026-06-01', text: entryText }], {})
+  })
+
+  test('review view shows read-only cards resolved from stored IDs', async ({ page }) => {
+    await seedPendingExtraction(page, id, true)
+    await page.goto(reviewUrl)
+    await expect(page.getByText(entryText)).toBeVisible()
+    const card = page.getByRole('article')
+    await expect(card).toHaveCount(1)
+    await expect(card.getByText('Tomato', { exact: true })).toBeVisible()
+    await expect(card.getByText('Fix', { exact: true })).toBeVisible()
+    await expect(card.getByText('Removed spotted leaves')).toBeVisible()
+    await expect(card.getByText(/Spotted leaves/)).toBeVisible()
+    await expect(card.getByText(/Raw crop|P9/)).toHaveCount(0)
+    await expect(card.getByRole('link')).toHaveCount(0)
+    await expect(card.getByRole('button')).toHaveCount(0)
+    await expect(page.locator('input, textarea, [contenteditable="true"]')).toHaveCount(0)
+  })
+
+  test('reopening review makes no API call or new usage record', async ({ page }) => {
+    await seedPendingExtraction(page, id, true)
+    const requests: string[] = []
+    await page.route(/https:\/\/api\.(openai|anthropic)\.com\//, route => {
+      requests.push(route.request().url())
+      return route.abort()
+    })
+    const before = await storedReviewData(page)
+    await page.goto(reviewUrl)
+    await expect(page.getByText('Removed spotted leaves')).toBeVisible()
+    await page.reload()
+    await expect(page.getByText('Removed spotted leaves')).toBeVisible()
+    expect(await storedReviewData(page)).toEqual(before)
+    expect(requests).toEqual([])
+  })
+
+  test('row with pending extraction links to the review view', async ({ page }) => {
+    await seedPendingExtraction(page, id, true)
+    await page.reload()
+    await page.getByRole('button', { name: /Sync/ }).click()
+    await page.getByRole('link', { name: 'Review →' }).click()
+    await expect(page).toHaveURL(/\/journal\/sync\/?\?id=review-entry$/)
+    await expect(page.getByText(entryText)).toBeVisible()
+    await expect(page.getByText('Removed spotted leaves')).toBeVisible()
+  })
+
+  test('missing review data shows the empty state and links to Journal', async ({ page }) => {
+    const externalRequests: string[] = []
+    await page.route('**/*', route => {
+      if (new URL(route.request().url()).origin === new URL(page.url()).origin) {
+        return route.continue()
+      }
+      externalRequests.push(route.request().url())
+      return route.abort()
+    })
+    const before = await storedReviewData(page)
+    for (const url of [reviewUrl, `${BASE}/journal/sync/?id=missing`]) {
+      await page.goto(url)
+      await expect(page.getByText('No extraction to review')).toBeVisible()
+      await expect(page.getByText(entryText)).toHaveCount(0)
+      await expect(page.getByRole('article')).toHaveCount(0)
+      expect(await storedReviewData(page)).toEqual(before)
+      await page.getByRole('link', { name: 'Back to Journal' }).click()
+      await expect(page).toHaveURL(/\/journal\/?$/)
+    }
+    expect(externalRequests).toEqual([])
   })
 })

@@ -122,7 +122,7 @@ export interface ApiUsageLog {
 export interface PendingExtraction {
   entryId: string
   events: EventReview[]
-  usage: { inputTokens: number; outputTokens: number }
+  usage: { inputTokens: number; outputTokens: number } | null
   createdAt: string
 }
 
@@ -641,6 +641,14 @@ export async function getPendingExtractionByEntryId(
   database?: GardenDB,
 ): Promise<PendingExtraction | undefined> {
   return (await resolveDb(database)).get('pendingExtractions', entryId)
+}
+
+export async function savePendingExtraction(
+  record: PendingExtraction,
+  database?: GardenDB,
+): Promise<PendingExtraction> {
+  await (await resolveDb(database)).put('pendingExtractions', record)
+  return record
 }
 
 export async function addApiUsageLog(

@@ -89,7 +89,7 @@ describe('runExtraction with OpenAI', () => {
 
   it('well-formed OpenAI response returns validated events', async () => {
     respond({ ...VALID_TOOL_RESPONSE, usage: USAGE })
-    await expect(run()).resolves.toEqual(VALID_EVENTS)
+    await expect(run()).resolves.toEqual({ events: VALID_EVENTS, usage: { inputTokens: 100, outputTokens: 50 } })
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
@@ -180,14 +180,14 @@ describe('runExtraction with OpenAI', () => {
 
   it('no usage field returns events without writing a usage log', async () => {
     respond(VALID_TOOL_RESPONSE)
-    await expect(run()).resolves.toEqual(VALID_EVENTS)
+    await expect(run()).resolves.toEqual({ events: VALID_EVENTS, usage: null })
     expect(await getLogs()).toEqual([])
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('logs zero token counts when the usage field is present but empty', async () => {
     respond({ ...VALID_TOOL_RESPONSE, usage: {} })
-    await expect(run()).resolves.toEqual(VALID_EVENTS)
+    await expect(run()).resolves.toEqual({ events: VALID_EVENTS, usage: { inputTokens: 0, outputTokens: 0 } })
 
     const logs = await getLogs()
     expect(logs).toHaveLength(1)

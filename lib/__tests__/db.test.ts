@@ -24,6 +24,7 @@ import {
   applyNeedsSyncRule,
   getPendingExtractionByEntryId,
   addApiUsageLog,
+  savePendingExtraction,
 } from '../db'
 import type { PendingExtraction } from '../db'
 
@@ -599,4 +600,13 @@ describe('addApiUsageLog', () => {
     expect(byEntry).toHaveLength(1)
     expect(byEntry[0].id).toBe(log.id)
   })
+})
+
+it('savePendingExtraction returns and persists the record', async () => {
+  const db = await freshDb()
+  const record: PendingExtraction = {
+    entryId: 'entry', events: [], usage: null, createdAt: '2026-06-01T11:00:00Z',
+  }
+  expect(await savePendingExtraction(record, db)).toEqual(record)
+  expect(await getPendingExtractionByEntryId(record.entryId, db)).toEqual(record)
 })

@@ -35,11 +35,11 @@ The data and logic layer. UI does not appear here.
 | `lib/sync.ts` | Sync orchestrator. Runs the weather and extraction steps for unsynced entries and writes the results through `lib/db.ts`. See §4. |
 | `lib/orchestrator/geocode.ts` | Geocoding client for location search in Settings. Exports `searchLocations`, `reverseGeocode`, and `GeoResult`. |
 | `lib/orchestrator/weather.ts` | Placeholder for future weather network calls (weather sync currently in `lib/weatherSync.ts`). |
-| `lib/orchestrator/ai.ts` | `runExtraction()` — reads provider config from Settings, calls the provider, logs token usage before validation, validates the response against `ExtractedEventSchema`, and returns `ExtractedEvent[]`. See §5. |
+| `lib/orchestrator/ai.ts` | `runExtraction()` — reads provider config from Settings, calls the provider, logs token usage before validation, validates the response against `ExtractedEventSchema`, and returns validated events with response usage. `runEntryExtraction()` builds the request, resolves events, and saves the pending extraction. See §4 and §5. |
 | `lib/ai/extractionSpec.ts` | One Zod schema for extracted events; the model's tool schema and the TypeScript type are both derived from it. See §5. |
 | `lib/ai/requestBuilder.ts` | Turns a journal entry and its context into a provider-agnostic `ExtractionRequest` (system prompt, user message, tool definition) and a `labelMap` mapping ephemeral problem labels to database IDs. Pure function; no network or database access. See §5. |
 | `lib/ai/eventResolver.ts` | Resolves validated events into pending reviews using roster names, problem labels, and the entry year; no database or network access. See §5. |
-| `lib/ai/provider.ts` | `AIProvider` interface (`extract(request, config) → RawExtractionResult`), `StubAIProvider`, and `getProvider(providerId)` factory for Anthropic and OpenAI. `RawExtractionResult` carries `events: unknown` (untrusted until validated) and `usage`. |
+| `lib/ai/provider.ts` | `AIProvider` interface (`extract(request, config) → RawExtractionResult`) and `getProvider(providerId)` factory for Anthropic and OpenAI. `RawExtractionResult` carries `events: unknown` (untrusted until validated) and `usage`. |
 | `lib/ai/anthropicProvider.ts` | `AnthropicProvider implements AIProvider`. Sends one forced-tool-call request to the Anthropic Messages API, parses the tool-use block into `events: unknown`, and maps the response usage object into `UsageData`. No DB access, no validation, no retries. |
 | `lib/ai/openaiProvider.ts` | `OpenAIProvider implements AIProvider`. Sends one forced function call to Chat Completions, parses tool arguments into `events: unknown`, and maps usage into `UsageData`. |
 | `lib/weatherSync.ts` | Open-Meteo client. Returns weather for a date and location; network errors return `null`. |
@@ -47,7 +47,7 @@ The data and logic layer. UI does not appear here.
 
 ### `app/`
 
-Next.js App Router, fully static export; every page is a client component. Screens live in the `(tabs)` route group, which shares a tab shell: Journal, Crops, Next Season, Settings. `/` redirects to `/journal`. `app/dev/` is a developer wipe route. `manifest.ts` and `sw-register.tsx` wire up PWA install and the service worker (§6, §7).
+Next.js App Router, fully static export; every page is a client component. Screens live in the `(tabs)` route group, which shares a tab shell: Journal, Crops, Next Season, Settings. `/` redirects to `/journal`. `/journal/sync?id=<entryId>` opens the extraction review. `app/dev/` is a developer wipe route. `manifest.ts` and `sw-register.tsx` wire up PWA install and the service worker (§6, §7).
 
 ### `components/`
 
@@ -102,9 +102,9 @@ Sync starts from the Journal tab **Sync** button (D-010), or from the per-entry 
 For each unsynced entry there are two independent steps:
 
 - **Weather.** Fetched from Open-Meteo using the location in Settings and written back to the entry. Weather is written whether or not extraction runs (D-055). A failed fetch yields no weather for that entry and does not stop the sync.
-- **Extraction.** The entry text, the crop roster, and open problems go to the AI provider. The response is validated (§5) and saved as a `PendingExtraction` holding one `EventReview` per extracted event (D-030). The user confirms or dismisses each one. Confirm writes to the crop timeline; dismiss writes nothing.
+- **Extraction.** Text entries with complete AI configuration and without a completed review or stored extraction are eligible. `runEntryExtraction` reads the roster and the entry year's open problems, resolves problem crop names, then builds the request. It calls `runExtraction`, resolves validated events against the roster and the request's problem label map, and stores one `PendingExtraction` with one pending `EventReview` per event (D-030). When usage is absent, the review stores `usage: null` and no usage log is written. Transport or validation failures leave the entry unsynced and report a failed AI step. A later user-started sync can try again.
 
-Before extraction, the pipeline checks that provider, model, and API key are configured (D-066). Token usage is logged as soon as a response arrives, before validation, so billed calls are always recorded even when the response is rejected (D-067). Extraction is never retried automatically; a failure shows a Retry button.
+A row with a stored extraction links to the read-only review. It displays the entry text and cards with the crop name, event type, notes, and linked problem reference. Crop and problem display values come from stored resolved IDs. When the entry or extraction is missing, the view shows “No extraction to review” and links back to Journal. Opening the view reads existing records without calling the provider or writing records.
 
 `needsSync` clears when the entry has weather and either has no text or has `extractionReviewedAt` (D-097). The rule is applied after every write to `weatherC` or `extractionReviewedAt`, so the order of the two steps does not matter. The `PendingExtraction` is deleted in the Done transaction. Re-running extraction discards the `PendingExtraction` and warns if any confirmed card, including manually added cards, would be lost. A review is stale if the entry was edited after the extraction was created (`entry.updatedAt > pendingExtraction.createdAt`); the cards are shown but Confirm and Done are disabled until the user chooses Keep or Re-run (D-096).
 
@@ -141,7 +141,7 @@ Entry text is untrusted input to the model: a pasted web page or a crafted note 
 1. Selects the provider implementation with `getProvider(settings.aiProvider)`.
 2. Calls `provider.extract(request, { model, apiKey })`. If the provider throws (transport failure), the error propagates immediately — no usage log is written.
 3. If the provider returns and `usage` is non-null, writes one `ApiUsageLog` to IndexedDB via `addApiUsageLog` **before** validation, so a billed call is never lost (D-067).
-4. Validates `raw.events` against `z.array(ExtractedEventSchema)` and returns the parsed `ExtractedEvent[]`. A validation failure throws after the usage log has already been written.
+4. Validates `raw.events` against `z.array(ExtractedEventSchema)` and returns the parsed events with the normalized token counts from that response, or null usage when counts are absent. A validation failure throws after the usage log has already been written.
 
 `getProvider` selects Anthropic or OpenAI from Settings. Each adapter translates the extraction request into its own wire format. OpenAI maps `input_schema` to `parameters` (D-103). The adapters fetch and parse responses. Database access and validation belong to the orchestrator (invariant I-3). The separation mirrors the weather split: `fetchWeatherForDate` is network-only, the orchestrator writes.
 

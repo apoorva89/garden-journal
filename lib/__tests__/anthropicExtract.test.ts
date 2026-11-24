@@ -90,13 +90,13 @@ describe('runExtraction', () => {
 
   it('well-formed response returns validated events', async () => {
     vi.stubGlobal('fetch', makeFetchOk(WELL_FORMED_RESPONSE))
-    const events = await runExtraction({
+    const result = await runExtraction({
       entryId: ENTRY_ID,
       request: MINIMAL_REQUEST,
       settings: ANTHROPIC_SETTINGS,
       database: db,
     })
-    expect(events).toEqual(VALID_EVENTS)
+    expect(result).toEqual({ events: VALID_EVENTS, usage: { inputTokens: 100, outputTokens: 50 } })
   })
 
   it('success logs one ApiUsageLog with rawUsage', async () => {
