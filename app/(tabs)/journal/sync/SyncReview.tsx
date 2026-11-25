@@ -57,7 +57,7 @@ export default function SyncReview() {
 
   if (empty) {
     return (
-      <div className="flex flex-col items-center gap-4 p-8">
+      <div className="flex flex-col items-center gap-4 p-8 text-ink">
         <p>No extraction to review</p>
         <Link href="/journal">Back to Journal</Link>
       </div>
@@ -70,7 +70,7 @@ export default function SyncReview() {
   const cropNameById = new Map(cropTypes.map((c) => [c.id, c.name]))
 
   return (
-    <div className="p-4 flex flex-col gap-4">
+    <div className="p-4 flex flex-col gap-4 text-ink">
       <p className="whitespace-pre-wrap">{entry.text}</p>
       {extraction.events.map((review) => {
         const cropName = review.resolvedCropTypeId
@@ -80,10 +80,10 @@ export default function SyncReview() {
           ? problemsById.get(review.resolvedLinkedProblemId)
           : undefined
         return (
-          <article key={review.id} className="border rounded p-3 flex flex-col gap-2">
+          <article key={review.id} className="border border-bone rounded bg-surface p-3 flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <span>{cropName}</span>
-              <span className="rounded px-1 text-xs bg-muted">{formatEventType(review.extracted.eventType)}</span>
+              <span className="rounded px-1 text-xs bg-weather text-forest">{formatEventType(review.extracted.eventType)}</span>
             </div>
             <p>{review.extracted.notes}</p>
             {problem && <p className="text-sm text-muted">{problem.notes}</p>}
