@@ -453,6 +453,24 @@ describe('runSync: persisting extraction', () => {
     ])
   })
 
+  it('uses General for an open problem with a missing crop and preserves its link', async () => {
+    const { db, entry, sync } = await setup()
+    const problem = await createCropEvent({
+      cropInstanceId: 'missing-instance', date: entry.date, type: 'problem', notes: 'Damaged leaves',
+      linkedProblemId: null, photos: [], weatherC: null, weatherIcon: null,
+    }, db)
+    extract.mockResolvedValueOnce(response)
+
+    await sync()
+
+    const { userMessage } = extract.mock.calls[0][0]
+    expect(userMessage).toContain('P1 (General, 2026-06-01): Damaged leaves')
+    expect(userMessage).not.toContain(problem.id)
+    expect(userMessage).not.toContain(problem.cropInstanceId)
+    expect((await getPendingExtractionByEntryId(entry.id, db))?.events[0].resolvedLinkedProblemId)
+      .toBe(problem.id)
+  })
+
   it('PendingExtraction.usage sourced from the provider response', async () => {
     const { db, entry, sync } = await setup()
     extract.mockResolvedValueOnce(response)
