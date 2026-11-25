@@ -231,7 +231,12 @@ None.
   because their return links were missing. After the fix, both cases and the existing empty
   state passed against the static export in Chromium. Lint, typecheck, all 162 unit tests,
   and the production build passed.
-- [ ] Verify the new Review → Back to Sync flow on the laptop and installed phone PWA.
+- [x] PR #101 second review — On a clean seeded DB with the production service worker
+  controlling the page, offline reload lost “Back to Sync” before the fix. The fix passed
+  offline reload of both Review and the reopened SyncSheet in Chromium. The mounted ID
+  change also reproduced before the fix and passed after isolating review state by entry ID.
+- [ ] Verify Review → Back to Sync on the laptop and installed phone PWA, including offline
+  reload of Review and of the reopened SyncSheet after the update is active.
 
 ## 10. Surprises & discoveries
 
@@ -243,6 +248,15 @@ None.
 - Resolved (2026-11-24 resumed) — Browser tests ran successfully in the resumed environment.
   Captured the 4 expected failures (AC-12, AC-13, AC-14, AC-16) against the baseline, then
   implemented the review UI and confirmed all 8 review tests pass.
+- PR #101 description update for the next authorized PR edit. The Anthropic and OpenAI
+  live integration specs are approved in §3, including agreement between returned usage
+  and the billing log. D-112 and architecture §2 and §4 document the fixed review and return
+  destinations and the fragment that makes them compatible with the existing offline cache.
+  The owner verified contrast on both the laptop and installed phone PWA. The pending
+  navigation check is to open Review from SyncSheet and verify that “Back to Sync” restores
+  the open sheet on both devices, including offline reload. Keep the existing AC-15
+  disposition. Manual linked-problem verification is deferred to Confirm/Done. Seeded
+  Playwright coverage verifies rendering of the stored linked problem in this phase.
 
 ## 11. Decision log
 
@@ -313,9 +327,11 @@ implementation, not renumbering existing entries). Each is recorded here in draf
 - The human accepted the reported CI result for the existing WebKit coverage. The WebKit
   investigation is tracked in issue #102.
 - PR #101 human review requested a return path from Review to the open SyncSheet.
-  The review URL records when it was opened from the sheet, and Journal uses its URL
-  to restore the open sheet. Direct review URLs and the empty state link to Journal.
-  The return path uses fixed app routes so it works independently of browser history.
+  Review links from the sheet use `/journal/sync?id=<entryId>#sync` and return to
+  `/journal#sync`. Journal opens the sheet when the fragment is present. The fragment
+  stays in the browser, so the existing worker can match both precached pages offline.
+  Direct review URLs and the empty state link to `/journal` with the sheet closed. Fixed
+  routes make the return path independent of browser history. See D-112.
 
 ## 12. Outcomes & retrospective
 

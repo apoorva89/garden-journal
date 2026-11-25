@@ -1037,9 +1037,9 @@ The PR owner approved updating the Anthropic and OpenAI live integration specs t
 **Status:** Draft for review
 **Date:** 2026-11-24
 **Phase:** 8d-5
-**Decision:** SyncSheet links to `/journal/sync?id=<entryId>`. The route reads stored entry and review data. If either record is missing, show “No extraction to review” and a “Back to Journal” link.
-**Alternatives:** Enumerate a dynamic path at build time, keep entry text above the empty state, or redirect immediately.
-**Consequences:** IDs generated after deployment work with the static export. A directly opened URL provides a way back to Journal while entry text remains available in the entry detail view.
+**Decision:** Direct review URLs use `/journal/sync?id=<entryId>`. SyncSheet adds `#sync`, which gives a loaded review a “Back to Sync” link to `/journal#sync`. Journal opens the sheet when that fragment is present and removes it when the sheet closes. Direct reviews link to `/journal` with the sheet closed. If either stored record is missing, show “No extraction to review” and link to `/journal` regardless of the fragment.
+**Alternatives:** A dynamic path enumerated at build time, browser-history navigation, or additional query parameters (`from=sync` and `sync=open`).
+**Consequences:** IDs generated after deployment work with the static export. Fixed destinations work independently of browser history. The fragment stays in the browser, so the service worker can match the precached review and Journal pages on offline reload.
 
 ---
 
