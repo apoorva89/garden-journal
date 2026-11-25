@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { Suspense, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import CalendarStrip from '@/components/journal/CalendarStrip'
 import EntryFeed from '@/components/journal/EntryFeed'
 import SyncSheet from '@/components/journal/SyncSheet'
@@ -10,6 +11,15 @@ import type { JournalEntry, EntryPhoto } from '@/lib/db'
 import LoadingSpinner from '@/components/LoadingSpinner'
 
 export default function JournalPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <Journal />
+    </Suspense>
+  )
+}
+
+function Journal() {
+  const searchParams = useSearchParams()
   const now = new Date()
   const [displayYear, setDisplayYear] = useState(now.getFullYear())
   const [displayMonth, setDisplayMonth] = useState(now.getMonth() + 1)
@@ -18,7 +28,17 @@ export default function JournalPage() {
   const [photosByEntry, setPhotosByEntry] = useState<Record<string, EntryPhoto[]>>({})
   const [loaded, setLoaded] = useState(false)
   const [unsyncedCount, setUnsyncedCount] = useState(0)
-  const [showSync, setShowSync] = useState(false)
+  const showSync = searchParams.get('sync') === 'open'
+
+  function setShowSync(open: boolean) {
+    const url = new URL(window.location.href)
+    if (open) {
+      url.searchParams.set('sync', 'open')
+    } else {
+      url.searchParams.delete('sync')
+    }
+    window.history.replaceState(null, '', url)
+  }
 
   const fetchMonthData = useCallback(async (year: number, month: number) => {
     const es = await getEntriesByMonth(year, month)

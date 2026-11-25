@@ -25,6 +25,7 @@ interface ReviewData {
 export default function SyncReview() {
   const searchParams = useSearchParams()
   const id = searchParams.get('id')
+  const fromSync = searchParams.get('from') === 'sync'
 
   const [data, setData] = useState<ReviewData | null>(null)
   const [empty, setEmpty] = useState(false)
@@ -71,6 +72,12 @@ export default function SyncReview() {
 
   return (
     <div className="p-4 flex flex-col gap-4 text-ink">
+      <Link
+        href={fromSync ? '/journal?sync=open' : '/journal'}
+        className="inline-flex min-h-11 self-start items-center font-medium underline"
+      >
+        {fromSync ? 'Back to Sync' : 'Back to Journal'}
+      </Link>
       <p className="whitespace-pre-wrap">{entry.text}</p>
       {extraction.events.map((review) => {
         const cropName = review.resolvedCropTypeId

@@ -226,6 +226,12 @@ None.
   After the fix, all six review tests passed in desktop Chromium and both contrast tests
   passed with iPhone 15 emulation in Chromium. The local sandbox blocked standard
   Chromium and WebKit launches. Desktop and installed-PWA readability rechecks are pending.
+- [x] PR #101 return path — The owner confirmed readability on the laptop and installed
+  phone PWA. On clean seeded databases, both new navigation cases timed out before the fix
+  because their return links were missing. After the fix, both cases and the existing empty
+  state passed against the static export in Chromium. Lint, typecheck, all 162 unit tests,
+  and the production build passed.
+- [ ] Verify the new Review → Back to Sync flow on the laptop and installed phone PWA.
 
 ## 10. Surprises & discoveries
 
@@ -306,6 +312,10 @@ implementation, not renumbering existing entries). Each is recorded here in draf
   next phase. The existing TDD evidence is retained for this PR.
 - The human accepted the reported CI result for the existing WebKit coverage. The WebKit
   investigation is tracked in issue #102.
+- PR #101 human review requested a return path from Review to the open SyncSheet.
+  The review URL records when it was opened from the sheet, and Journal uses its URL
+  to restore the open sheet. Direct review URLs and the empty state link to Journal.
+  The return path uses fixed app routes so it works independently of browser history.
 
 ## 12. Outcomes & retrospective
 

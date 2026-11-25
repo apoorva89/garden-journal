@@ -269,7 +269,10 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
                         {row.aiStatus !== null ? (
                           row.hasPendingExtraction ? (
                             <Link
-                              href={`/journal/sync?id=${row.entry.id}`}
+                              href={{
+                                pathname: '/journal/sync',
+                                query: { id: row.entry.id, from: 'sync' },
+                              }}
                               className="text-xs text-forest font-medium"
                               data-testid={`review-link-${row.entry.id}`}
                             >
