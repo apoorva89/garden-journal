@@ -68,6 +68,7 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
   const [summary, setSummary] = useState<SyncSummary | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState(false)
+  const [refreshError, setRefreshError] = useState(false)
 
   const syncing = syncingHere || waitingForExistingRun
 
@@ -132,6 +133,7 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
   async function handleSync() {
     setSyncingHere(true)
     setSummary(null)
+    setRefreshError(false)
     // Reset row statuses — keep 'synced' weather in place (gate in sync.ts skips re-fetch)
     setRows((prev) =>
       prev.map((row) => ({
@@ -144,43 +146,50 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
     type ProgressEntry = [string, 'weather' | 'ai', WeatherStatus | AIStatus]
     const log: ProgressEntry[] = []
 
-    await runSync({
-      onProgress(entryId, step, status) {
-        log.push([entryId, step, status])
-        setRows((prev) =>
-          prev.map((row) => {
-            if (row.entry.id !== entryId) return row
-            if (step === 'weather') {
-              // Don't overwrite 'synced' with 'skipped' — consistent with the reset above
-              if (status === 'skipped' && row.weatherStatus === 'synced') return row
-              return { ...row, weatherStatus: status as WeatherStatus }
-            }
-            return { ...row, aiStatus: status as AIStatus }
-          }),
-        )
-      },
-    })
+    try {
+      await runSync({
+        onProgress(entryId, step, status) {
+          log.push([entryId, step, status])
+          setRows((prev) =>
+            prev.map((row) => {
+              if (row.entry.id !== entryId) return row
+              if (step === 'weather') {
+                // Don't overwrite 'synced' with 'skipped' — consistent with the reset above
+                if (status === 'skipped' && row.weatherStatus === 'synced') return row
+                return { ...row, weatherStatus: status as WeatherStatus }
+              }
+              return { ...row, aiStatus: status as AIStatus }
+            }),
+          )
+        },
+      })
 
-    // Compute post-run summary
-    const newSummary: SyncSummary = { weatherSynced: 0, weatherFailed: 0, weatherSkipped: 0, aiQueued: 0, aiFailed: 0, aiSkipped: 0 }
-    for (const [, step, status] of log) {
-      if (step === 'weather') {
-        if (status === 'synced') newSummary.weatherSynced++
-        else if (status === 'failed') newSummary.weatherFailed++
-        else if (status === 'skipped') newSummary.weatherSkipped++
-      } else {
-        if (status === 'review-pending') newSummary.aiQueued++
-        else if (status === 'failed') newSummary.aiFailed++
-        else if (status === 'skipped') newSummary.aiSkipped++
+      // Compute post-run summary
+      const newSummary: SyncSummary = { weatherSynced: 0, weatherFailed: 0, weatherSkipped: 0, aiQueued: 0, aiFailed: 0, aiSkipped: 0 }
+      for (const [, step, status] of log) {
+        if (step === 'weather') {
+          if (status === 'synced') newSummary.weatherSynced++
+          else if (status === 'failed') newSummary.weatherFailed++
+          else if (status === 'skipped') newSummary.weatherSkipped++
+        } else {
+          if (status === 'review-pending') newSummary.aiQueued++
+          else if (status === 'failed') newSummary.aiFailed++
+          else if (status === 'skipped') newSummary.aiSkipped++
+        }
       }
+
+      try {
+        const flags = await readPendingExtractionFlags(rows)
+        setRows((prev) => applyPendingExtractionFlags(prev, flags))
+      } catch {
+        setRefreshError(true)
+      }
+
+      setSummary(newSummary)
+      onSynced()
+    } finally {
+      setSyncingHere(false)
     }
-
-    const flags = await readPendingExtractionFlags(rows)
-    setRows((prev) => applyPendingExtractionFlags(prev, flags))
-
-    setSyncingHere(false)
-    setSummary(newSummary)
-    onSynced()
   }
 
   const hasLocation = settings?.latitude != null && settings?.longitude != null
@@ -335,6 +344,12 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
                     AI: {summary.aiQueued} queued, {summary.aiFailed} failed, {summary.aiSkipped} skipped
                   </p>
                 </div>
+              )}
+
+              {refreshError && (
+                <p role="status" className="mb-3 text-xs text-muted">
+                  Could not refresh saved reviews. Try Sync Now again.
+                </p>
               )}
 
               <button

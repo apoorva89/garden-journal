@@ -246,6 +246,12 @@ None.
   persisted, but the reopened sheet timed out waiting for “Review →”. The Chromium
   regression passed after the completion poll refreshed pending extractions.
 
+- [x] PR #101 current-sheet refresh failure — A clean-DB Chromium test forced the
+  post-run extraction read to reject. Before the fix, Sync Now remained disabled and
+  the assertion timed out after five seconds. After the fix, the button re-enabled,
+  the run summary appeared, and a second Sync Now surfaced the saved Review link.
+  The reopened-sheet completion regression also passed.
+
 ## 10. Surprises & discoveries
 
 - Resolved (2026-11-24) — The human approved both provider extraction test updates in §3
