@@ -649,6 +649,48 @@ test.describe('Read-only extraction review', () => {
     await expect(page.locator('input, textarea, [contenteditable="true"]')).toHaveCount(0)
   })
 
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`review text is readable in ${colorScheme} mode`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme })
+      await seedPendingExtraction(page, id, true)
+      await page.goto(reviewUrl)
+
+      const card = page.getByRole('article')
+      const text = [
+        page.getByText(entryText),
+        card.getByText('Tomato', { exact: true }),
+        card.getByText('Fix', { exact: true }),
+        card.getByText('Removed spotted leaves'),
+        card.getByText(/Spotted leaves/),
+      ]
+      const failures: string[] = []
+      for (const locator of text) {
+        const { label, contrast } = await locator.evaluate(element => {
+          function luminance(color: string) {
+            const channels = color.match(/[\d.]+/g)!.slice(0, 3).map(value => {
+              const channel = Number(value) / 255
+              return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+            })
+            return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+          }
+
+          let surface = element
+          while (surface.parentElement && getComputedStyle(surface).backgroundColor === 'rgba(0, 0, 0, 0)') {
+            surface = surface.parentElement
+          }
+          const foreground = luminance(getComputedStyle(element).color)
+          const background = luminance(getComputedStyle(surface).backgroundColor)
+          return {
+            label: element.textContent,
+            contrast: (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05),
+          }
+        })
+        if (contrast < 4.5) failures.push(`${label}: ${contrast.toFixed(2)}:1`)
+      }
+      expect(failures, 'Text below 4.5:1 contrast').toEqual([])
+    })
+  }
+
   test('reopening review makes no API call or new usage record', async ({ page }) => {
     await seedPendingExtraction(page, id, true)
     const requests: string[] = []
