@@ -46,22 +46,52 @@ const AI_LABEL: Record<AIStatus, string> = {
   skipped: '–',
 }
 
+async function readPendingExtractionFlags(rows: RowState[]) {
+  return new Map(await Promise.all(rows.map(async ({ entry }) => [
+    entry.id,
+    !!(await getPendingExtractionByEntryId(entry.id)),
+  ] as const)))
+}
+
+function applyPendingExtractionFlags(rows: RowState[], flags: Map<string, boolean>) {
+  return rows.map((row) => ({
+    ...row,
+    hasPendingExtraction: flags.get(row.entry.id) ?? row.hasPendingExtraction,
+  }))
+}
+
 export default function SyncSheet({ onClose, onSynced }: Props) {
   const [rows, setRows] = useState<RowState[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
-  const [syncing, setSyncing] = useState(isRunning())
+  const [syncingHere, setSyncingHere] = useState(false)
+  const [waitingForExistingRun, setWaitingForExistingRun] = useState(isRunning)
   const [summary, setSummary] = useState<SyncSummary | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState(false)
 
-  // When the sheet opens while a run is in progress, poll until it finishes
+  const syncing = syncingHere || waitingForExistingRun
+
+  // A run started by a previous mount cannot update this sheet's rows.
   useEffect(() => {
-    if (!syncing) return
-    const interval = setInterval(() => {
-      if (!isRunning()) setSyncing(false)
+    if (!waitingForExistingRun || !loaded) return
+    let cancelled = false
+    const interval = setInterval(async () => {
+      if (isRunning()) return
+      clearInterval(interval)
+      try {
+        const flags = await readPendingExtractionFlags(rows)
+        if (!cancelled) setRows((prev) => applyPendingExtractionFlags(prev, flags))
+      } catch {
+        if (!cancelled) setLoadError(true)
+      } finally {
+        if (!cancelled) setWaitingForExistingRun(false)
+      }
     }, 200)
-    return () => clearInterval(interval)
-  }, [syncing])
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [loaded, rows, waitingForExistingRun])
 
   useEffect(() => {
     async function load() {
@@ -100,7 +130,7 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
   }, [])
 
   async function handleSync() {
-    setSyncing(true)
+    setSyncingHere(true)
     setSummary(null)
     // Reset row statuses — keep 'synced' weather in place (gate in sync.ts skips re-fetch)
     setRows((prev) =>
@@ -145,17 +175,10 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
       }
     }
 
-    // Re-read PendingExtractions after the run (future phases may create them)
-    const entryIds = rows.map((r) => r.entry.id)
-    const pendingMap: Record<string, boolean> = {}
-    await Promise.all(
-      entryIds.map(async (id) => {
-        pendingMap[id] = !!(await getPendingExtractionByEntryId(id))
-      }),
-    )
-    setRows((prev) => prev.map((row) => ({ ...row, hasPendingExtraction: pendingMap[row.entry.id] ?? row.hasPendingExtraction })))
+    const flags = await readPendingExtractionFlags(rows)
+    setRows((prev) => applyPendingExtractionFlags(prev, flags))
 
-    setSyncing(false)
+    setSyncingHere(false)
     setSummary(newSummary)
     onSynced()
   }
