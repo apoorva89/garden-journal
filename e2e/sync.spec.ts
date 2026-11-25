@@ -707,7 +707,7 @@ test.describe('Read-only extraction review', () => {
     expect(requests).toEqual([])
   })
 
-  test('row with pending extraction opens Review and returns to Sync', async ({ page }) => {
+  test('row with pending extraction links to the review view', async ({ page }) => {
     await seedPendingExtraction(page, id, true)
     await page.reload()
     await page.getByRole('button', { name: /Sync/ }).click()
@@ -755,6 +755,7 @@ test.describe('Read-only extraction review', () => {
       await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true)
       await page.getByRole('button', { name: /Sync/ }).click()
       await page.getByRole('link', { name: 'Review →' }).click()
+      await expect(page.getByRole('link', { name: 'Back to Sync' })).toBeVisible()
       await expect(page.getByText(entryText)).toBeVisible()
 
       await context.setOffline(true)
@@ -767,6 +768,7 @@ test.describe('Read-only extraction review', () => {
       await page.reload()
       await expect(page.getByRole('heading', { name: 'Sync', exact: true })).toBeVisible()
       await page.getByRole('link', { name: 'Review →' }).click()
+      await expect(page.getByRole('link', { name: 'Back to Sync' })).toBeVisible()
       await expect(page.getByText(entryText)).toBeVisible()
     })
   }
