@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { SYNC_FRAGMENT, useSyncFragment } from '@/components/journal/syncFragment'
 import {
   getJournalEntryById,
   getPendingExtractionByEntryId,
@@ -23,20 +24,25 @@ interface ReviewData {
 }
 
 export default function SyncReview() {
-  const searchParams = useSearchParams()
-  const id = searchParams.get('id')
-  const fromSync = searchParams.get('from') === 'sync'
+  const id = useSearchParams().get('id')
+  const fromSync = useSyncFragment()
+  return <EntryReview key={id} id={id} fromSync={fromSync} />
+}
 
+function EntryReview({ id, fromSync }: { id: string | null; fromSync: boolean }) {
   const [data, setData] = useState<ReviewData | null>(null)
-  const [empty, setEmpty] = useState(false)
+  const [empty, setEmpty] = useState(!id)
 
   useEffect(() => {
+    if (!id) return
+    const entryId = id
+    let cancelled = false
     async function load() {
-      if (!id) { setEmpty(true); return }
       const [entry, extraction] = await Promise.all([
-        getJournalEntryById(id),
-        getPendingExtractionByEntryId(id),
+        getJournalEntryById(entryId),
+        getPendingExtractionByEntryId(entryId),
       ])
+      if (cancelled) return
       if (!entry || !extraction) {
         setEmpty(true)
         return
@@ -46,6 +52,7 @@ export default function SyncReview() {
         new Set(extraction.events.map((r) => r.resolvedLinkedProblemId).filter(Boolean) as string[])
       )
       const problemEntries = await Promise.all(problemIds.map((pid) => getCropEventById(pid)))
+      if (cancelled) return
       const problemsById = new Map<string, CropEvent>()
       for (let i = 0; i < problemIds.length; i++) {
         const p = problemEntries[i]
@@ -54,6 +61,7 @@ export default function SyncReview() {
       setData({ entry, extraction, cropTypes, problemsById })
     }
     load()
+    return () => { cancelled = true }
   }, [id])
 
   if (empty) {
@@ -73,7 +81,7 @@ export default function SyncReview() {
   return (
     <div className="p-4 flex flex-col gap-4 text-ink">
       <Link
-        href={fromSync ? '/journal?sync=open' : '/journal'}
+        href={fromSync ? `/journal${SYNC_FRAGMENT}` : '/journal'}
         className="inline-flex min-h-11 self-start items-center font-medium underline"
       >
         {fromSync ? 'Back to Sync' : 'Back to Journal'}

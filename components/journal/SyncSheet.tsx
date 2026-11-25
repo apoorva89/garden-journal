@@ -6,6 +6,7 @@ import { getUnsyncedEntries, getSettings, getPendingExtractionByEntryId } from '
 import type { JournalEntry, Settings } from '@/lib/db'
 import { runSync, isRunning } from '@/lib/sync'
 import type { WeatherStatus, AIStatus } from '@/lib/sync'
+import { SYNC_FRAGMENT } from './syncFragment'
 
 interface RowState {
   entry: JournalEntry
@@ -271,7 +272,8 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
                             <Link
                               href={{
                                 pathname: '/journal/sync',
-                                query: { id: row.entry.id, from: 'sync' },
+                                query: { id: row.entry.id },
+                                hash: SYNC_FRAGMENT,
                               }}
                               className="text-xs text-forest font-medium"
                               data-testid={`review-link-${row.entry.id}`}

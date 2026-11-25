@@ -2,10 +2,10 @@
 
 import { Suspense, useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 import CalendarStrip from '@/components/journal/CalendarStrip'
 import EntryFeed from '@/components/journal/EntryFeed'
 import SyncSheet from '@/components/journal/SyncSheet'
+import { setSyncFragment, useSyncFragment } from '@/components/journal/syncFragment'
 import { getEntriesByMonth, getEntryPhotosByEntry, getUnsyncedEntries } from '@/lib/db'
 import type { JournalEntry, EntryPhoto } from '@/lib/db'
 import LoadingSpinner from '@/components/LoadingSpinner'
@@ -19,7 +19,6 @@ export default function JournalPage() {
 }
 
 function Journal() {
-  const searchParams = useSearchParams()
   const now = new Date()
   const [displayYear, setDisplayYear] = useState(now.getFullYear())
   const [displayMonth, setDisplayMonth] = useState(now.getMonth() + 1)
@@ -28,17 +27,7 @@ function Journal() {
   const [photosByEntry, setPhotosByEntry] = useState<Record<string, EntryPhoto[]>>({})
   const [loaded, setLoaded] = useState(false)
   const [unsyncedCount, setUnsyncedCount] = useState(0)
-  const showSync = searchParams.get('sync') === 'open'
-
-  function setShowSync(open: boolean) {
-    const url = new URL(window.location.href)
-    if (open) {
-      url.searchParams.set('sync', 'open')
-    } else {
-      url.searchParams.delete('sync')
-    }
-    window.history.replaceState(null, '', url)
-  }
+  const showSync = useSyncFragment()
 
   const fetchMonthData = useCallback(async (year: number, month: number) => {
     const es = await getEntriesByMonth(year, month)
@@ -102,7 +91,7 @@ function Journal() {
         <header className="px-4 pt-12 pb-3 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-ink">Journal</h1>
           <button
-            onClick={() => setShowSync(true)}
+            onClick={() => setSyncFragment(true)}
             className="flex items-center gap-1.5 text-sm font-medium text-forest active:opacity-70"
             aria-label="Sync entries"
           >
@@ -140,7 +129,7 @@ function Journal() {
       </div>
       {showSync && (
         <SyncSheet
-          onClose={() => setShowSync(false)}
+          onClose={() => setSyncFragment(false)}
           onSynced={handleSynced}
         />
       )}
