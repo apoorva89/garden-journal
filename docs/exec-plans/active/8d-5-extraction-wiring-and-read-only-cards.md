@@ -108,6 +108,10 @@ store. No IndexedDB version, store, or index change. Existing numeric records re
   query-param form `/journal/sync?id=${id}` (static-export-compatible, matches `EntryDetail`; see
   §7 D-3). No other change.
 
+**app/(tabs)/journal/page.tsx** and **components/journal/syncFragment.ts**
+- Open the SyncSheet when Journal receives `#sync` and remove the fragment when the sheet
+  closes. Reuse the fragment for links between the sheet and Review (D-112).
+
 **app/(tabs)/journal/sync/page.tsx** [new]
 - `Suspense` wrapper around `SyncReview`, mirroring `app/(tabs)/journal/entry/page.tsx`.
 
@@ -235,8 +239,12 @@ None.
   controlling the page, offline reload lost “Back to Sync” before the fix. The fix passed
   offline reload of both Review and the reopened SyncSheet in Chromium. The mounted ID
   change also reproduced before the fix and passed after isolating review state by entry ID.
-- [ ] Verify Review → Back to Sync on the laptop and installed phone PWA, including offline
-  reload of Review and of the reopened SyncSheet after the update is active.
+- [x] PR #101 offline device verification — The owner confirmed that Review → Back to Sync
+  reopens the sheet on the laptop and installed phone PWA, and that both Review and the
+  reopened sheet survive offline reload at `954dcb1`.
+- [x] PR #101 reopened sheet — On a clean DB, the held extraction finished and was
+  persisted, but the reopened sheet timed out waiting for “Review →”. The Chromium
+  regression passed after the completion poll refreshed pending extractions.
 
 ## 10. Surprises & discoveries
 
