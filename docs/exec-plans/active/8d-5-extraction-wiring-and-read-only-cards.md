@@ -113,9 +113,10 @@ store. No IndexedDB version, store, or index change. Existing numeric records re
 
 **app/(tabs)/journal/sync/SyncReview.tsx** [new]
 - Client component. Reads `id` from `useSearchParams`, loads the entry and its
-  `PendingExtraction`, the roster, and the entry-year open problems. Renders the read-only entry
-  text and one read-only card per `EventReview`, resolving crop name and problem reference from
-  the stored resolved IDs. If the entry or its `PendingExtraction` is missing, show
+  `PendingExtraction` and the roster. Renders read-only entry text and one read-only card per
+  `EventReview`. Resolves crop labels from stored IDs and loads the linked problem directly by
+  `resolvedLinkedProblemId`, preserving the link selected from eligible open problems at
+  extraction time even if its status later changes. If the entry or its `PendingExtraction` is missing, show
   “No extraction to review” and a “Back to Journal” link to `/journal` in place of the
   entry text and cards. The view makes no network calls and writes no records (§11 D-5).
 
@@ -130,6 +131,10 @@ store. No IndexedDB version, store, or index change. Existing numeric records re
 - `lib/__tests__/anthropicExtract.test.ts` and `lib/__tests__/openaiExtract.test.ts` [extend] —
   update existing assertions to verify validated events and response usage under the new
   `runExtraction` result contract. Preserve existing coverage.
+
+- `e2e-integration/anthropic-live.spec.ts` and `e2e-integration/openai-live.spec.ts` [extend] —
+  adapt callers to the `{ events, usage }` result and verify returned usage agrees with the billing
+  log. Approved by the owner during review of PR #101.
 
 **docs**
 - `docs/ARCHITECTURE.md` — §2 (`lib/orchestrator/ai.ts` row: mention `runEntryExtraction`, and
