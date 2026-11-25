@@ -216,6 +216,11 @@ None.
   `runExtraction` (same return-type contract as the unit tests). All 162 unit tests,
   all 8 review e2e tests, lint, typecheck, and build pass. Only pre-existing webkit
   navigation timeout remains (unrelated to this phase).
+- [x] PR #101 contrast fix — Reproduced the badge contrast at 3.12:1 in light mode and
+  the entry text, crop name, and notes at 1.07:1 in dark mode on a clean seeded DB.
+  After the fix, all six review tests passed in desktop Chromium and both contrast tests
+  passed with iPhone 15 emulation in Chromium. The local sandbox blocked standard
+  Chromium and WebKit launches. Desktop and installed-PWA readability rechecks are pending.
 
 ## 10. Surprises & discoveries
 
@@ -283,6 +288,19 @@ implementation, not renumbering existing entries). Each is recorded here in draf
   use “General” as the prompt crop name. This keeps the problem eligible for label
   resolution without sending internal IDs. Alternatives considered were omitting the problem
   or using its stored instance ID as display text.
+
+- PR #101 human review approved the existing changes to `e2e-integration/anthropic-live.spec.ts`
+  and `e2e-integration/openai-live.spec.ts`, including assertions for returned usage and
+  agreement with the billing log. The fix workflow preserves the approved §3 text.
+- PR #101 human review approved fetching linked problem notes directly by stored
+  `resolvedLinkedProblemId`. Extraction restricts candidates to open problems in the
+  entry year, and review preserves the link if the problem's status later changes.
+- The manual linked-problem check is deferred until Confirm/Done can write confirmed problems
+  through the UI. A seeded Playwright test covers rendering stored links in this phase.
+- Per-acceptance-criterion TDD evidence and a test-writing and review gate are planned for the
+  next phase. The existing TDD evidence is retained for this PR.
+- The human accepted the reported CI result for the existing WebKit coverage. The WebKit
+  investigation is tracked in issue #102.
 
 ## 12. Outcomes & retrospective
 

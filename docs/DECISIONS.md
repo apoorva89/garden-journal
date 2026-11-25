@@ -1028,6 +1028,10 @@ Entries written before this log existed have no dates. New entries include a **D
 **Alternatives:** Inline the pipeline in sync, expose a provider override, or stub fetch in sync tests.
 **Consequences:** Retry and Re-run can reuse the per-entry seam. The stub and its unused override are removed (D-100).
 
+If an open problem's crop instance or crop type cannot be found, use “General” as its crop name in the request. This preserves the problem as a candidate for link resolution and keeps internal IDs out of the request.
+
+The PR owner approved updating the Anthropic and OpenAI live integration specs to verify the returned usage and its agreement with the billing log under the new result contract.
+
 ### D-112 — Use a query parameter for the read-only extraction review
 **Type:** Technical
 **Status:** Draft for review
