@@ -707,14 +707,31 @@ test.describe('Read-only extraction review', () => {
     expect(requests).toEqual([])
   })
 
-  test('row with pending extraction links to the review view', async ({ page }) => {
+  test('row with pending extraction opens Review and returns to Sync', async ({ page }) => {
     await seedPendingExtraction(page, id, true)
     await page.reload()
     await page.getByRole('button', { name: /Sync/ }).click()
     await page.getByRole('link', { name: 'Review →' }).click()
-    await expect(page).toHaveURL(/\/journal\/sync\/?\?id=review-entry$/)
+    await expect(page).toHaveURL(url =>
+      /\/journal\/sync\/?$/.test(url.pathname) && url.searchParams.get('id') === id,
+    )
     await expect(page.getByText(entryText)).toBeVisible()
     await expect(page.getByText('Removed spotted leaves')).toBeVisible()
+    await page.getByRole('link', { name: 'Back to Sync' }).click()
+    await expect(page.getByRole('heading', { name: 'Sync', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Review →' })).toBeVisible()
+    await page.getByRole('button', { name: 'Done', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Sync', exact: true })).toHaveCount(0)
+  })
+
+  test('direct review entry returns to Journal with Sync closed', async ({ page }) => {
+    await seedPendingExtraction(page, id, true)
+    await page.goto(reviewUrl)
+    await expect(page.getByText(entryText)).toBeVisible()
+    await page.getByRole('link', { name: 'Back to Journal' }).click()
+    await expect(page).toHaveURL(/\/journal\/?$/)
+    await expect(page.getByRole('heading', { name: 'Journal', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Sync', exact: true })).toHaveCount(0)
   })
 
   test('missing review data shows the empty state and links to Journal', async ({ page }) => {
