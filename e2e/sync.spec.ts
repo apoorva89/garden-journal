@@ -734,6 +734,43 @@ test.describe('Read-only extraction review', () => {
     await expect(page.getByRole('heading', { name: 'Sync', exact: true })).toHaveCount(0)
   })
 
+  test('changing the review ID in place replaces the empty state and prior entry', async ({ page }) => {
+    await seedPendingExtraction(page, id, true)
+    await page.goto(`${BASE}/journal/sync/?id=missing`)
+    await expect(page.getByText('No extraction to review')).toBeVisible()
+
+    await page.evaluate(url => window.history.replaceState(null, '', url), reviewUrl)
+    await expect(page.getByText(entryText)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('No extraction to review')).toHaveCount(0)
+
+    await page.evaluate(() => window.history.replaceState(null, '', '?id=missing'))
+    await expect(page.getByText('No extraction to review')).toBeVisible()
+    await expect(page.getByText(entryText)).toHaveCount(0)
+  })
+
+  // CI serves the static export. The local dev server cannot register the production worker.
+  if (process.env.CI) {
+    test('offline reload preserves Review and the reopened SyncSheet', async ({ page, context }) => {
+      await seedPendingExtraction(page, id, true)
+      await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true)
+      await page.getByRole('button', { name: /Sync/ }).click()
+      await page.getByRole('link', { name: 'Review →' }).click()
+      await expect(page.getByText(entryText)).toBeVisible()
+
+      await context.setOffline(true)
+      await page.reload()
+      await expect(page.getByRole('link', { name: 'Back to Sync' })).toBeVisible({ timeout: 5000 })
+      await expect(page.getByText(entryText)).toBeVisible()
+      await page.getByRole('link', { name: 'Back to Sync' }).click()
+      await expect(page.getByRole('heading', { name: 'Sync', exact: true })).toBeVisible()
+
+      await page.reload()
+      await expect(page.getByRole('heading', { name: 'Sync', exact: true })).toBeVisible()
+      await page.getByRole('link', { name: 'Review →' }).click()
+      await expect(page.getByText(entryText)).toBeVisible()
+    })
+  }
+
   test('missing review data shows the empty state and links to Journal', async ({ page }) => {
     const externalRequests: string[] = []
     await page.route('**/*', route => {
