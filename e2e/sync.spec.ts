@@ -461,6 +461,57 @@ test.describe('SyncSheet: Journal tab shows weather after sync', () => {
 // ── TC-1: Reopen rebuilds rows from stored data (issue #49) ───────────────────
 
 test.describe('SyncSheet reopen: persisted weather and AI state (issue #49 TC-1)', () => {
+  test('reopened sheet shows Review when the in-flight extraction completes', async ({ page }) => {
+    let releaseExtraction!: () => void
+    const extractionBlocked = new Promise<void>((resolve) => { releaseExtraction = resolve })
+    await page.route('https://api.anthropic.com/v1/messages', async (route) => {
+      await extractionBlocked
+      await route.fulfill({
+        json: {
+          content: [{
+            type: 'tool_use',
+            input: { events: [{
+              eventType: 'fix', matchedRosterName: null, linkedProblemRef: null,
+              notes: 'Removed spotted leaves', eventDate: null, nurseryName: null, variety: null,
+            }] },
+          }],
+        },
+      })
+    })
+
+    const id = 'e-in-flight'
+    await page.goto(`${BASE}/journal/`)
+    await seedDb(page, [{ id, date: '2026-06-01', text: 'Removed spotted leaves' }], {
+      aiProvider: 'anthropic',
+      aiModel: 'claude-sonnet-4-6',
+      apiKey: 'sk-ant-test',
+    })
+    await page.reload()
+    await page.getByRole('button', { name: 'Sync entries' }).click()
+    const syncButton = page.getByTestId('sync-button')
+    const reviewLink = page.getByRole('link', { name: 'Review →' })
+    try {
+      const extractionRequest = page.waitForRequest('https://api.anthropic.com/v1/messages')
+      await syncButton.click()
+      await extractionRequest
+
+      await page.getByRole('button', { name: 'Done', exact: true }).click()
+      await expect(syncButton).toHaveCount(0)
+      await page.getByRole('button', { name: 'Sync entries' }).click()
+      await expect(syncButton).toBeDisabled()
+      await expect(page.getByTestId(`ai-status-${id}`)).toHaveAttribute('aria-label', 'AI: pending')
+      await expect(reviewLink).toHaveCount(0)
+    } finally {
+      releaseExtraction()
+    }
+
+    await expect(syncButton).toBeEnabled()
+    expect(await storedReviewData(page)).toMatchObject({
+      extractions: [{ entryId: id }],
+    })
+    await expect(reviewLink).toBeVisible()
+  })
+
   test('weather shows synced and AI shows skipped on reopen after run with no AI config', async ({ page }) => {
     await page.route('**/archive-api.open-meteo.com/**', (route) => route.fulfill({ json: WEATHER_MOCK }))
     await page.goto(`${BASE}/journal/`)
