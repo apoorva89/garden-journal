@@ -74,18 +74,34 @@ async function seedDb(
 async function seedPendingExtraction(
   page: Page,
   entryId: string,
+  withCard = false,
 ) {
   await page.evaluate(
-    (entryId) => {
+    ({ entryId, withCard }) => {
       return new Promise<void>((resolve, reject) => {
         const req = indexedDB.open('garden-journal', 1)
         req.onerror = () => reject(req.error)
         req.onsuccess = () => {
           const db = req.result
-          const tx = db.transaction('pendingExtractions', 'readwrite')
+          const tx = db.transaction(['pendingExtractions', 'cropTypes', 'cropEvents'], 'readwrite')
+          if (withCard) {
+            tx.objectStore('cropTypes').put({ id: 'tomato', name: 'Tomato', lessons: [] })
+            tx.objectStore('cropEvents').put({
+              id: 'problem', cropInstanceId: 'tomato-instance', date: '2026-06-01',
+              year: 2026, type: 'problem', notes: 'Spotted leaves', resolved: false,
+              linkedProblemId: null, photos: [], weatherC: null, weatherIcon: null,
+            })
+          }
           tx.objectStore('pendingExtractions').put({
             entryId,
-            events: [],
+            events: withCard ? [{
+              id: 'card', status: 'pending', resolvedCropTypeId: 'tomato',
+              resolvedLinkedProblemId: 'problem', resolvedInstanceId: null, resolvedDate: '2026-06-01',
+              extracted: {
+                eventType: 'fix', matchedRosterName: 'Raw crop', linkedProblemRef: 'P9',
+                notes: 'Removed spotted leaves', eventDate: null, nurseryName: null, variety: null,
+              },
+            }] : [],
             usage: { inputTokens: 100, outputTokens: 50 },
             createdAt: new Date().toISOString(),
           })
@@ -94,7 +110,7 @@ async function seedPendingExtraction(
         }
       })
     },
-    entryId,
+    { entryId, withCard },
   )
 }
 
@@ -445,6 +461,95 @@ test.describe('SyncSheet: Journal tab shows weather after sync', () => {
 // ── TC-1: Reopen rebuilds rows from stored data (issue #49) ───────────────────
 
 test.describe('SyncSheet reopen: persisted weather and AI state (issue #49 TC-1)', () => {
+  test('reopened sheet shows Review when the in-flight extraction completes', async ({ page }) => {
+    let releaseExtraction!: () => void
+    const extractionBlocked = new Promise<void>((resolve) => { releaseExtraction = resolve })
+    await page.route('https://api.anthropic.com/v1/messages', async (route) => {
+      await extractionBlocked
+      await route.fulfill({
+        json: {
+          content: [{
+            type: 'tool_use',
+            input: { events: [{
+              eventType: 'fix', matchedRosterName: null, linkedProblemRef: null,
+              notes: 'Removed spotted leaves', eventDate: null, nurseryName: null, variety: null,
+            }] },
+          }],
+        },
+      })
+    })
+
+    const id = 'e-in-flight'
+    await page.goto(`${BASE}/journal/`)
+    await seedDb(page, [{ id, date: '2026-06-01', text: 'Removed spotted leaves' }], {
+      aiProvider: 'anthropic',
+      aiModel: 'claude-sonnet-4-6',
+      apiKey: 'sk-ant-test',
+    })
+    await page.reload()
+    await page.getByRole('button', { name: 'Sync entries' }).click()
+    const syncButton = page.getByTestId('sync-button')
+    const reviewLink = page.getByRole('link', { name: 'Review →' })
+    try {
+      const extractionRequest = page.waitForRequest('https://api.anthropic.com/v1/messages')
+      await syncButton.click()
+      await extractionRequest
+
+      await page.getByRole('button', { name: 'Done', exact: true }).click()
+      await expect(syncButton).toHaveCount(0)
+      await page.getByRole('button', { name: 'Sync entries' }).click()
+      await expect(syncButton).toBeDisabled()
+      await expect(page.getByTestId(`ai-status-${id}`)).toHaveAttribute('aria-label', 'AI: pending')
+      await expect(reviewLink).toHaveCount(0)
+    } finally {
+      releaseExtraction()
+    }
+
+    await expect(syncButton).toBeEnabled()
+    expect(await storedReviewData(page)).toMatchObject({
+      extractions: [{ entryId: id }],
+    })
+    await expect(reviewLink).toBeVisible()
+  })
+
+  test('Sync Now recovers when the post-run extraction read fails', async ({ page }) => {
+    await page.route('https://api.anthropic.com/v1/messages', async (route) => {
+      // The orchestrator has already checked for an existing extraction.
+      // Fail the next read of this store while allowing the extraction write.
+      await page.evaluate(() => {
+        const transaction = IDBDatabase.prototype.transaction
+        IDBDatabase.prototype.transaction = function (storeNames, mode, options) {
+          if (storeNames === 'pendingExtractions' && mode !== 'readwrite') {
+            IDBDatabase.prototype.transaction = transaction
+            throw new DOMException('Injected post-run extraction read failure', 'UnknownError')
+          }
+          return transaction.call(this, storeNames, mode, options)
+        }
+      })
+      await route.fulfill({ json: { content: [{ type: 'tool_use', input: { events: [] } }] } })
+    })
+
+    const id = 'e-refresh-failure'
+    await page.goto(`${BASE}/journal/`)
+    await seedDb(page, [{ id, date: '2026-06-01', text: 'Checked tomato plants' }], {
+      aiProvider: 'anthropic',
+      aiModel: 'claude-sonnet-4-6',
+      apiKey: 'sk-ant-test',
+    })
+    await page.reload()
+    await page.getByRole('button', { name: 'Sync entries' }).click()
+
+    const syncButton = page.getByTestId('sync-button')
+    await syncButton.click()
+    await expect(page.getByTestId(`ai-status-${id}`)).toHaveAttribute('aria-label', 'AI: review-pending')
+    await expect(syncButton).toBeEnabled()
+    await expect(page.getByTestId('sync-summary')).toContainText('AI: 1 queued')
+    expect(await storedReviewData(page)).toMatchObject({ extractions: [{ entryId: id }] })
+
+    await syncButton.click()
+    await expect(page.getByRole('link', { name: 'Review →' })).toBeVisible()
+  })
+
   test('weather shows synced and AI shows skipped on reopen after run with no AI config', async ({ page }) => {
     await page.route('**/archive-api.open-meteo.com/**', (route) => route.fulfill({ json: WEATHER_MOCK }))
     await page.goto(`${BASE}/journal/`)
@@ -585,5 +690,197 @@ test.describe('SyncSheet re-run: synced weather stays synced (issue #49 TC-2)', 
 
     // The orchestrator skips already-synced entries — no second weather request should be made
     expect(weatherCallCount).toBe(1)
+  })
+})
+
+async function storedReviewData(page: Page) {
+  return page.evaluate(() => new Promise((resolve, reject) => {
+    const request = indexedDB.open('garden-journal', 1)
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const db = request.result
+      const tx = db.transaction(['journalEntries', 'apiUsageLogs', 'pendingExtractions'])
+      const entries = tx.objectStore('journalEntries').getAll()
+      const logs = tx.objectStore('apiUsageLogs').getAll()
+      const extractions = tx.objectStore('pendingExtractions').getAll()
+      tx.oncomplete = () => {
+        db.close()
+        resolve({ entries: entries.result, logs: logs.result, extractions: extractions.result })
+      }
+      tx.onabort = () => reject(tx.error)
+    }
+  }))
+}
+
+test.describe('Read-only extraction review', () => {
+  const id = 'review-entry'
+  const entryText = 'Checked tomato plants today'
+  const reviewUrl = `${BASE}/journal/sync/?id=${id}`
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto(`${BASE}/journal/`)
+    await seedDb(page, [{ id, date: '2026-06-01', text: entryText }], {})
+  })
+
+  test('review view shows read-only cards resolved from stored IDs', async ({ page }) => {
+    await seedPendingExtraction(page, id, true)
+    await page.goto(reviewUrl)
+    await expect(page.getByText(entryText)).toBeVisible()
+    const card = page.getByRole('article')
+    await expect(card).toHaveCount(1)
+    await expect(card.getByText('Tomato', { exact: true })).toBeVisible()
+    await expect(card.getByText('Fix', { exact: true })).toBeVisible()
+    await expect(card.getByText('Removed spotted leaves')).toBeVisible()
+    await expect(card.getByText(/Spotted leaves/)).toBeVisible()
+    await expect(card.getByText(/Raw crop|P9/)).toHaveCount(0)
+    await expect(card.getByRole('link')).toHaveCount(0)
+    await expect(card.getByRole('button')).toHaveCount(0)
+    await expect(page.locator('input, textarea, [contenteditable="true"]')).toHaveCount(0)
+  })
+
+  for (const colorScheme of ['light', 'dark'] as const) {
+    test(`review text is readable in ${colorScheme} mode`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme })
+      await seedPendingExtraction(page, id, true)
+      await page.goto(reviewUrl)
+
+      const card = page.getByRole('article')
+      const text = [
+        page.getByText(entryText),
+        card.getByText('Tomato', { exact: true }),
+        card.getByText('Fix', { exact: true }),
+        card.getByText('Removed spotted leaves'),
+        card.getByText(/Spotted leaves/),
+      ]
+      const failures: string[] = []
+      for (const locator of text) {
+        const { label, contrast } = await locator.evaluate(element => {
+          function luminance(color: string) {
+            const channels = color.match(/[\d.]+/g)!.slice(0, 3).map(value => {
+              const channel = Number(value) / 255
+              return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+            })
+            return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+          }
+
+          let surface = element
+          while (surface.parentElement && getComputedStyle(surface).backgroundColor === 'rgba(0, 0, 0, 0)') {
+            surface = surface.parentElement
+          }
+          const foreground = luminance(getComputedStyle(element).color)
+          const background = luminance(getComputedStyle(surface).backgroundColor)
+          return {
+            label: element.textContent,
+            contrast: (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05),
+          }
+        })
+        if (contrast < 4.5) failures.push(`${label}: ${contrast.toFixed(2)}:1`)
+      }
+      expect(failures, 'Text below 4.5:1 contrast').toEqual([])
+    })
+  }
+
+  test('reopening review makes no API call or new usage record', async ({ page }) => {
+    await seedPendingExtraction(page, id, true)
+    const requests: string[] = []
+    await page.route(/https:\/\/api\.(openai|anthropic)\.com\//, route => {
+      requests.push(route.request().url())
+      return route.abort()
+    })
+    const before = await storedReviewData(page)
+    await page.goto(reviewUrl)
+    await expect(page.getByText('Removed spotted leaves')).toBeVisible()
+    await page.reload()
+    await expect(page.getByText('Removed spotted leaves')).toBeVisible()
+    expect(await storedReviewData(page)).toEqual(before)
+    expect(requests).toEqual([])
+  })
+
+  test('row with pending extraction links to the review view', async ({ page }) => {
+    await seedPendingExtraction(page, id, true)
+    await page.reload()
+    await page.getByRole('button', { name: /Sync/ }).click()
+    await page.getByRole('link', { name: 'Review →' }).click()
+    await expect(page).toHaveURL(url =>
+      /\/journal\/sync\/?$/.test(url.pathname) && url.searchParams.get('id') === id,
+    )
+    await expect(page.getByText(entryText)).toBeVisible()
+    await expect(page.getByText('Removed spotted leaves')).toBeVisible()
+    await page.getByRole('link', { name: 'Back to Sync' }).click()
+    await expect(page.getByRole('heading', { name: 'Sync', exact: true })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Review →' })).toBeVisible()
+    await page.getByRole('button', { name: 'Done', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Sync', exact: true })).toHaveCount(0)
+  })
+
+  test('direct review entry returns to Journal with Sync closed', async ({ page }) => {
+    await seedPendingExtraction(page, id, true)
+    await page.goto(reviewUrl)
+    await expect(page.getByText(entryText)).toBeVisible()
+    await page.getByRole('link', { name: 'Back to Journal' }).click()
+    await expect(page).toHaveURL(/\/journal\/?$/)
+    await expect(page.getByRole('heading', { name: 'Journal', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Sync', exact: true })).toHaveCount(0)
+  })
+
+  test('changing the review ID in place replaces the empty state and prior entry', async ({ page }) => {
+    await seedPendingExtraction(page, id, true)
+    await page.goto(`${BASE}/journal/sync/?id=missing`)
+    await expect(page.getByText('No extraction to review')).toBeVisible()
+
+    await page.evaluate(url => window.history.replaceState(null, '', url), reviewUrl)
+    await expect(page.getByText(entryText)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('No extraction to review')).toHaveCount(0)
+
+    await page.evaluate(() => window.history.replaceState(null, '', '?id=missing'))
+    await expect(page.getByText('No extraction to review')).toBeVisible()
+    await expect(page.getByText(entryText)).toHaveCount(0)
+  })
+
+  // CI serves the static export. The local dev server cannot register the production worker.
+  if (process.env.CI) {
+    test('offline reload preserves Review and the reopened SyncSheet', async ({ page, context }) => {
+      await seedPendingExtraction(page, id, true)
+      await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true)
+      await page.getByRole('button', { name: /Sync/ }).click()
+      await page.getByRole('link', { name: 'Review →' }).click()
+      await expect(page.getByRole('link', { name: 'Back to Sync' })).toBeVisible()
+      await expect(page.getByText(entryText)).toBeVisible()
+
+      await context.setOffline(true)
+      await page.reload()
+      await expect(page.getByRole('link', { name: 'Back to Sync' })).toBeVisible({ timeout: 5000 })
+      await expect(page.getByText(entryText)).toBeVisible()
+      await page.getByRole('link', { name: 'Back to Sync' }).click()
+      await expect(page.getByRole('heading', { name: 'Sync', exact: true })).toBeVisible()
+
+      await page.reload()
+      await expect(page.getByRole('heading', { name: 'Sync', exact: true })).toBeVisible()
+      await page.getByRole('link', { name: 'Review →' }).click()
+      await expect(page.getByRole('link', { name: 'Back to Sync' })).toBeVisible()
+      await expect(page.getByText(entryText)).toBeVisible()
+    })
+  }
+
+  test('missing review data shows the empty state and links to Journal', async ({ page }) => {
+    const externalRequests: string[] = []
+    await page.route('**/*', route => {
+      if (new URL(route.request().url()).origin === new URL(page.url()).origin) {
+        return route.continue()
+      }
+      externalRequests.push(route.request().url())
+      return route.abort()
+    })
+    const before = await storedReviewData(page)
+    for (const url of [reviewUrl, `${BASE}/journal/sync/?id=missing`]) {
+      await page.goto(url)
+      await expect(page.getByText('No extraction to review')).toBeVisible()
+      await expect(page.getByText(entryText)).toHaveCount(0)
+      await expect(page.getByRole('article')).toHaveCount(0)
+      expect(await storedReviewData(page)).toEqual(before)
+      await page.getByRole('link', { name: 'Back to Journal' }).click()
+      await expect(page).toHaveURL(/\/journal\/?$/)
+    }
+    expect(externalRequests).toEqual([])
   })
 })

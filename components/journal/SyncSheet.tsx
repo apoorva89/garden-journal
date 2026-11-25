@@ -6,6 +6,7 @@ import { getUnsyncedEntries, getSettings, getPendingExtractionByEntryId } from '
 import type { JournalEntry, Settings } from '@/lib/db'
 import { runSync, isRunning } from '@/lib/sync'
 import type { WeatherStatus, AIStatus } from '@/lib/sync'
+import { SYNC_FRAGMENT } from './syncFragment'
 
 interface RowState {
   entry: JournalEntry
@@ -45,22 +46,53 @@ const AI_LABEL: Record<AIStatus, string> = {
   skipped: '–',
 }
 
+async function readPendingExtractionFlags(rows: RowState[]) {
+  return new Map(await Promise.all(rows.map(async ({ entry }) => [
+    entry.id,
+    !!(await getPendingExtractionByEntryId(entry.id)),
+  ] as const)))
+}
+
+function applyPendingExtractionFlags(rows: RowState[], flags: Map<string, boolean>) {
+  return rows.map((row) => ({
+    ...row,
+    hasPendingExtraction: flags.get(row.entry.id) ?? row.hasPendingExtraction,
+  }))
+}
+
 export default function SyncSheet({ onClose, onSynced }: Props) {
   const [rows, setRows] = useState<RowState[]>([])
   const [settings, setSettings] = useState<Settings | null>(null)
-  const [syncing, setSyncing] = useState(isRunning())
+  const [syncingHere, setSyncingHere] = useState(false)
+  const [waitingForExistingRun, setWaitingForExistingRun] = useState(isRunning)
   const [summary, setSummary] = useState<SyncSummary | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState(false)
+  const [refreshError, setRefreshError] = useState(false)
 
-  // When the sheet opens while a run is in progress, poll until it finishes
+  const syncing = syncingHere || waitingForExistingRun
+
+  // A run started by a previous mount cannot update this sheet's rows.
   useEffect(() => {
-    if (!syncing) return
-    const interval = setInterval(() => {
-      if (!isRunning()) setSyncing(false)
+    if (!waitingForExistingRun || !loaded) return
+    let cancelled = false
+    const interval = setInterval(async () => {
+      if (isRunning()) return
+      clearInterval(interval)
+      try {
+        const flags = await readPendingExtractionFlags(rows)
+        if (!cancelled) setRows((prev) => applyPendingExtractionFlags(prev, flags))
+      } catch {
+        if (!cancelled) setLoadError(true)
+      } finally {
+        if (!cancelled) setWaitingForExistingRun(false)
+      }
     }, 200)
-    return () => clearInterval(interval)
-  }, [syncing])
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [loaded, rows, waitingForExistingRun])
 
   useEffect(() => {
     async function load() {
@@ -99,8 +131,9 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
   }, [])
 
   async function handleSync() {
-    setSyncing(true)
+    setSyncingHere(true)
     setSummary(null)
+    setRefreshError(false)
     // Reset row statuses — keep 'synced' weather in place (gate in sync.ts skips re-fetch)
     setRows((prev) =>
       prev.map((row) => ({
@@ -113,50 +146,50 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
     type ProgressEntry = [string, 'weather' | 'ai', WeatherStatus | AIStatus]
     const log: ProgressEntry[] = []
 
-    await runSync({
-      onProgress(entryId, step, status) {
-        log.push([entryId, step, status])
-        setRows((prev) =>
-          prev.map((row) => {
-            if (row.entry.id !== entryId) return row
-            if (step === 'weather') {
-              // Don't overwrite 'synced' with 'skipped' — consistent with the reset above
-              if (status === 'skipped' && row.weatherStatus === 'synced') return row
-              return { ...row, weatherStatus: status as WeatherStatus }
-            }
-            return { ...row, aiStatus: status as AIStatus }
-          }),
-        )
-      },
-    })
+    try {
+      await runSync({
+        onProgress(entryId, step, status) {
+          log.push([entryId, step, status])
+          setRows((prev) =>
+            prev.map((row) => {
+              if (row.entry.id !== entryId) return row
+              if (step === 'weather') {
+                // Don't overwrite 'synced' with 'skipped' — consistent with the reset above
+                if (status === 'skipped' && row.weatherStatus === 'synced') return row
+                return { ...row, weatherStatus: status as WeatherStatus }
+              }
+              return { ...row, aiStatus: status as AIStatus }
+            }),
+          )
+        },
+      })
 
-    // Compute post-run summary
-    const newSummary: SyncSummary = { weatherSynced: 0, weatherFailed: 0, weatherSkipped: 0, aiQueued: 0, aiFailed: 0, aiSkipped: 0 }
-    for (const [, step, status] of log) {
-      if (step === 'weather') {
-        if (status === 'synced') newSummary.weatherSynced++
-        else if (status === 'failed') newSummary.weatherFailed++
-        else if (status === 'skipped') newSummary.weatherSkipped++
-      } else {
-        if (status === 'review-pending') newSummary.aiQueued++
-        else if (status === 'failed') newSummary.aiFailed++
-        else if (status === 'skipped') newSummary.aiSkipped++
+      // Compute post-run summary
+      const newSummary: SyncSummary = { weatherSynced: 0, weatherFailed: 0, weatherSkipped: 0, aiQueued: 0, aiFailed: 0, aiSkipped: 0 }
+      for (const [, step, status] of log) {
+        if (step === 'weather') {
+          if (status === 'synced') newSummary.weatherSynced++
+          else if (status === 'failed') newSummary.weatherFailed++
+          else if (status === 'skipped') newSummary.weatherSkipped++
+        } else {
+          if (status === 'review-pending') newSummary.aiQueued++
+          else if (status === 'failed') newSummary.aiFailed++
+          else if (status === 'skipped') newSummary.aiSkipped++
+        }
       }
+
+      try {
+        const flags = await readPendingExtractionFlags(rows)
+        setRows((prev) => applyPendingExtractionFlags(prev, flags))
+      } catch {
+        setRefreshError(true)
+      }
+
+      setSummary(newSummary)
+      onSynced()
+    } finally {
+      setSyncingHere(false)
     }
-
-    // Re-read PendingExtractions after the run (future phases may create them)
-    const entryIds = rows.map((r) => r.entry.id)
-    const pendingMap: Record<string, boolean> = {}
-    await Promise.all(
-      entryIds.map(async (id) => {
-        pendingMap[id] = !!(await getPendingExtractionByEntryId(id))
-      }),
-    )
-    setRows((prev) => prev.map((row) => ({ ...row, hasPendingExtraction: pendingMap[row.entry.id] ?? row.hasPendingExtraction })))
-
-    setSyncing(false)
-    setSummary(newSummary)
-    onSynced()
   }
 
   const hasLocation = settings?.latitude != null && settings?.longitude != null
@@ -269,7 +302,11 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
                         {row.aiStatus !== null ? (
                           row.hasPendingExtraction ? (
                             <Link
-                              href={`/journal/sync/${row.entry.id}/`}
+                              href={{
+                                pathname: '/journal/sync',
+                                query: { id: row.entry.id },
+                                hash: SYNC_FRAGMENT,
+                              }}
                               className="text-xs text-forest font-medium"
                               data-testid={`review-link-${row.entry.id}`}
                             >
@@ -307,6 +344,12 @@ export default function SyncSheet({ onClose, onSynced }: Props) {
                     AI: {summary.aiQueued} queued, {summary.aiFailed} failed, {summary.aiSkipped} skipped
                   </p>
                 </div>
+              )}
+
+              {refreshError && (
+                <p role="status" className="mb-3 text-xs text-muted">
+                  Could not refresh saved reviews. Try Sync Now again.
+                </p>
               )}
 
               <button

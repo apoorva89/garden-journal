@@ -924,13 +924,13 @@ Entries written before this log existed have no dates. New entries include a **D
 
 ### D-100 — AI call site in the 8d-1 orchestrator stub
 **Type:** Technical
-**Status:** Current
+**Status:** Superseded by D-111
 **Date:** 2026-10-19
 **Phase:** 8d-1
 **Context:** Phase 8d-1 wires up the sync orchestrator skeleton; the real AI provider is wired in a later phase. Options: (a) call `aiProvider.extract()` on the injected `StubAIProvider` (which throws "not implemented") and report the thrown error as `'failed'`; (b) skip the AI step without calling the provider; (c) call the provider and treat any result as success.
 **Decision:** Option (a): the orchestrator always calls `aiProvider.extract()` on text entries that pass the gate check. The `StubAIProvider` throws, which is caught and reported as `'failed'`. Phase 8d-5 replaces `StubAIProvider` with the real provider without changing the orchestrator skeleton.
 **Alternatives:** Option (b): hides the real code path and makes phase 8d-5 a structural change, not a provider swap.
-**Consequences:** In phase 8d-1 all AI steps report `'failed'`. The orchestrator does not change when the real provider is wired in.
+**Consequences:** In phase 8d-1 all AI steps report `'failed'`. Phase 8d-5 replaces the stub while retaining the existing gate and progress callbacks.
 
 ### D-101 — AI-missing banner suppressed when all pending entries have no text
 **Type:** Product
@@ -982,10 +982,10 @@ Entries written before this log existed have no dates. New entries include a **D
 **Decision:**
 - `AIProvider.extract(request: ExtractionRequest, config: { model: string; apiKey: string }): Promise<RawExtractionResult>` where `RawExtractionResult = { events: unknown; usage: UsageData | null }`. `events` is `unknown` because the model response is untrusted until validated (§5). `usage` is `null` only when the transport succeeded but the response carried no usage field.
 - `UsageData = { inputTokens: number; outputTokens: number; rawUsage: Record<string, number> }`. Anthropic maps `usage.input_tokens` and `usage.output_tokens` to `inputTokens` and `outputTokens` and retains its usage object in `rawUsage`. OpenAI maps `prompt_tokens` and `completion_tokens` to those counts and records the top-level token counts and mapped cache field in `rawUsage`. OpenAI reasoning-token details (`completion_tokens_details`) are omitted (D-031, D-109).
-- `runExtraction(params: { entryId: string; request: ExtractionRequest; settings: Settings; database?: GardenDB }): Promise<ExtractedEvent[]>` is the orchestration seam in `lib/orchestrator/ai.ts`. It logs usage before validation (D-067) so a billed call is never lost on a validation failure. `ApiUsageLog.date` is the call timestamp (`new Date().toISOString()`), not the entry date, because the log records a billing event at a point in time.
+- `runExtraction(params: { entryId: string; request: ExtractionRequest; settings: Settings; database?: GardenDB }): Promise<{ events: ExtractedEvent[]; usage: { inputTokens: number; outputTokens: number } | null }>` is the orchestration seam in `lib/orchestrator/ai.ts`. It logs usage before validation (D-067) so a billed call is never lost on a validation failure. `ApiUsageLog.date` is the call timestamp (`new Date().toISOString()`), not the entry date, because the log records a billing event at a point in time.
 - The provider does the network call only (no DB, no validation), mirroring the weather split (I-3).
 **Alternatives:** `extract(entryText, roster, openProblems)` builds the request internally — rejected, duplicates 8d-2's responsibility (D-035); logging and validating inside the provider — rejected, breaks I-3.
-**Consequences:** 8d-5 calls `runExtraction` and can read usage from `ApiUsageLog` via `by-entryId` index. Provider implementations added later follow the same thin-network-boundary contract.
+**Consequences:** The caller stores usage from the same response as the validated events, avoiding a lookup in the billing log (D-110). Provider implementations added later follow the same thin-network-boundary contract.
 
 ### D-108 — Event resolution contract and `EventReview.resolvedDate`
 **Type:** Technical
@@ -1007,6 +1007,39 @@ Entries written before this log existed have no dates. New entries include a **D
 **Decision:** Send one request to `/v1/chat/completions` with Bearer authentication and force the requested function. Copy the system and user messages verbatim. Carry the tool name and description through, and send `input_schema` verbatim as the function's `parameters`. Parse the first tool call's JSON arguments in a guard. Missing or malformed arguments yield undefined events alongside any usage so the runner logs usage before validation (D-067). Map `prompt_tokens` and `completion_tokens` to normalized input and output counts. Retain those counts and `total_tokens` in `rawUsage`, and map `prompt_tokens_details.cached_tokens` to `cache_read_input_tokens` when present. Omit other nested usage details.
 **Alternatives:** Throwing on malformed arguments would lose billed usage. Retaining the nested usage details would require changing the stored field type.
 **Consequences:** Both providers use the existing numeric usage contract and stay behind the same orchestration interface (D-035, D-106).
+
+---
+
+### D-110 — Persist validated extractions with response usage
+**Type:** Technical
+**Status:** Draft for review
+**Date:** 2026-11-24
+**Phase:** 8d-5
+**Decision:** `runExtraction` returns validated events with normalized usage from the same response. Save valid events with `usage: null` when usage is absent. Log reported usage before validation (D-067), and omit the log when usage is absent.
+**Alternatives:** Read the billing log after each successful call, store zero counts, fail the extraction, or warn the user.
+**Consequences:** Valid events remain available for review when billing data is absent. Diagnostics and synthetic checks are tracked in issue #100.
+
+### D-111 — Use a per-entry extraction seam with Settings-based provider selection
+**Type:** Technical
+**Status:** Draft for review
+**Date:** 2026-11-24
+**Phase:** 8d-5
+**Decision:** `runEntryExtraction` builds the request from entry context, calls `runExtraction`, resolves events, and saves the pending extraction. `lib/sync.ts` retains gating and progress reporting. Tests mock `getProvider`; production resolves the provider from Settings.
+**Alternatives:** Inline the pipeline in sync, expose a provider override, or stub fetch in sync tests.
+**Consequences:** Retry and Re-run can reuse the per-entry seam. The stub and its unused override are removed (D-100).
+
+If an open problem's crop instance or crop type cannot be found, use “General” as its crop name in the request. This preserves the problem as a candidate for link resolution and keeps internal IDs out of the request.
+
+The PR owner approved updating the Anthropic and OpenAI live integration specs to verify the returned usage and its agreement with the billing log under the new result contract.
+
+### D-112 — Use a query parameter for the read-only extraction review
+**Type:** Technical
+**Status:** Draft for review
+**Date:** 2026-11-24
+**Phase:** 8d-5
+**Decision:** Direct review URLs use `/journal/sync?id=<entryId>`. SyncSheet adds `#sync`, which gives a loaded review a “Back to Sync” link to `/journal#sync`. Journal opens the sheet when that fragment is present and removes it when the sheet closes. Direct reviews link to `/journal` with the sheet closed. If either stored record is missing, show “No extraction to review” and link to `/journal` regardless of the fragment.
+**Alternatives:** A dynamic path enumerated at build time, browser-history navigation, or additional query parameters (`from=sync` and `sync=open`).
+**Consequences:** IDs generated after deployment work with the static export. Fixed destinations work independently of browser history. The fragment stays in the browser, so the service worker can match the precached review and Journal pages on offline reload.
 
 ---
 

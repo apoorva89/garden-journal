@@ -71,7 +71,7 @@ test('live Anthropic extraction: integration, usage log, and garden-event qualit
       apiKeys: { anthropic: apiKey },
     }
 
-    const events = await runExtraction({
+    const { events, usage } = await runExtraction({
       entryId: ENTRY_ID,
       request,
       settings,
@@ -81,9 +81,10 @@ test('live Anthropic extraction: integration, usage log, and garden-event qualit
     console.log('\n=== EXTRACTED GARDEN EVENTS ===')
     console.log(JSON.stringify(events, null, 2))
 
-    // Integration contract: a successful real request returns valid events.
+    // Integration contract: a successful real request returns valid events and usage.
     expect(z.array(ExtractedEventSchema).safeParse(events).success).toBe(true)
     expect(events.length).toBeGreaterThan(0)
+    expect(usage).not.toBeNull()
 
     // Inspect usage AFTER reading it; no second API call is needed.
     const logs = await database.getAllFromIndex('apiUsageLogs', 'by-entryId', ENTRY_ID)
@@ -106,6 +107,8 @@ test('live Anthropic extraction: integration, usage log, and garden-event qualit
     expect(logs[0].outputTokens).toBeGreaterThan(0)
     expect(logs[0].rawUsage.input_tokens).toBe(logs[0].inputTokens)
     expect(logs[0].rawUsage.output_tokens).toBe(logs[0].outputTokens)
+    expect(usage!.inputTokens).toBe(logs[0].inputTokens)
+    expect(usage!.outputTokens).toBe(logs[0].outputTokens)
 
     // The following checks measure MODEL QUALITY, not API connectivity.
     // They are intentionally soft: all results are printed before the test

@@ -23,12 +23,6 @@ export interface AIProvider {
   extract(request: ExtractionRequest, config: ProviderCallConfig): Promise<RawExtractionResult>
 }
 
-export class StubAIProvider implements AIProvider {
-  async extract(): Promise<RawExtractionResult> {
-    throw new Error('not implemented')
-  }
-}
-
 export function getProvider(providerId: string): AIProvider {
   if (providerId === PROVIDER_ID_ANTHROPIC) {
     return new AnthropicProvider()

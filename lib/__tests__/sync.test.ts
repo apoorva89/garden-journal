@@ -1,13 +1,32 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { IDBFactory } from 'fake-indexeddb'
 import {
   openGardenDB,
   createJournalEntry,
   saveSettings,
+  createCropType,
+  createCropInstance,
+  createCropEvent,
+  getUnsyncedEntries,
+  getPendingExtractionByEntryId,
 } from '../db'
+import { getProvider } from '../ai/provider'
+import type { AIProvider, RawExtractionResult } from '../ai/provider'
 import type { Settings } from '../db'
 import { runSync, isRunning } from '../sync'
 import type { WeatherStatus, AIStatus } from '../sync'
+
+vi.mock('../ai/provider', async importOriginal => ({
+  ...await importOriginal<typeof import('../ai/provider')>(),
+  getProvider: vi.fn(),
+}))
+
+const extract = vi.fn<AIProvider['extract']>()
+beforeEach(() => {
+  vi.resetAllMocks()
+  vi.mocked(getProvider).mockReturnValue({ extract })
+  extract.mockRejectedValue(new Error('Transport failed'))
+})
 
 type WeatherResult = { weatherC: number; weatherIcon: string }
 
@@ -355,10 +374,198 @@ describe('runSync: each step called exactly once per eligible entry', () => {
     expect(e1WeatherTerminal).toHaveLength(1)
     expect(e2WeatherTerminal).toHaveLength(1)
 
-    // AI calls: 'running' + terminal = 2 calls per entry (stub throws → 'running' then 'failed')
+    // AI calls: 'running' + terminal = 2 calls per entry (fake provider throws → 'running' then 'failed')
     const e1AICalls = calls.filter(([id, step]) => id === e1.id && step === 'ai')
     const e2AICalls = calls.filter(([id, step]) => id === e2.id && step === 'ai')
     expect(e1AICalls).toHaveLength(2)
     expect(e2AICalls).toHaveLength(2)
+  })
+})
+
+describe('runSync: persisting extraction', () => {
+  const event = {
+    eventType: 'fix',
+    matchedRosterName: 'Tomato',
+    linkedProblemRef: 'P1',
+    notes: 'Removed damaged leaves',
+    eventDate: null,
+    nurseryName: null,
+    variety: null,
+  }
+  const usage = { inputTokens: 24, outputTokens: 7 }
+  const response = {
+    events: [event, { ...event, matchedRosterName: 'Tomatto', linkedProblemRef: 'P9' }],
+    usage: { ...usage, rawUsage: {} },
+  }
+
+  async function setup(settings = noLocation()) {
+    const db = await freshDb()
+    await saveSettings(settings, db)
+    const entry = await createJournalEntry({
+      date: '2026-06-01', text: event.notes, nextSeasonNote: '',
+      weatherC: null, weatherIcon: null, photoIds: [], createdAt: '2026-06-01T10:00:00Z',
+    }, db)
+    const calls: ProgressCall[] = []
+    const sync = () => runSync({
+      database: db,
+      weatherFetcher: successWeather,
+      onProgress: (id, step, status) => calls.push([id, step, status]),
+    })
+    return { db, entry, calls, sync }
+  }
+
+  it('saves one PendingExtraction with one pending review per event', async () => {
+    const { db, entry, calls, sync } = await setup()
+    extract.mockResolvedValueOnce(response)
+    await sync()
+
+    expect(await db.count('pendingExtractions')).toBe(1)
+    const saved = await getPendingExtractionByEntryId(entry.id, db)
+    expect(saved?.events.map(review => review.status)).toEqual(['pending', 'pending'])
+    expect(finalStatus(calls, entry.id, 'ai')).toBe('review-pending')
+    expect(extract).toHaveBeenCalledWith(expect.anything(), {
+      model: baseSettings.aiModel, apiKey: baseSettings.apiKeys[baseSettings.aiProvider],
+    })
+    expect(await db.count('cropEvents')).toBe(0)
+    expect(await db.count('generalNotes')).toBe(0)
+  })
+
+  it('stored reviews carry resolved IDs from roster and problems', async () => {
+    const { db, entry, sync } = await setup()
+    const crop = await createCropType({ name: 'Tomato', lessons: [] }, db)
+    const instance = await createCropInstance({
+      cropTypeId: crop.id, year: 2026, variety: '', source: { type: 'seed' }, createdAt: entry.createdAt,
+    }, db)
+    const problem = await createCropEvent({
+      cropInstanceId: instance.id, date: entry.date, type: 'problem', notes: 'Damaged leaves',
+      linkedProblemId: null, photos: [], weatherC: null, weatherIcon: null,
+    }, db)
+    extract.mockResolvedValueOnce(response)
+    await sync()
+
+    expect(extract).toHaveBeenCalledWith(expect.objectContaining({
+      userMessage: expect.stringContaining('P1 (Tomato, 2026-06-01): Damaged leaves'),
+    }), expect.anything())
+    expect(extract.mock.calls[0][0].userMessage).not.toContain(problem.id)
+    expect((await getPendingExtractionByEntryId(entry.id, db))?.events).toMatchObject([
+      { resolvedCropTypeId: crop.id, resolvedLinkedProblemId: problem.id },
+      { resolvedCropTypeId: null, resolvedLinkedProblemId: null },
+    ])
+  })
+
+  it('uses General for an open problem with a missing crop and preserves its link', async () => {
+    const { db, entry, sync } = await setup()
+    const problem = await createCropEvent({
+      cropInstanceId: 'missing-instance', date: entry.date, type: 'problem', notes: 'Damaged leaves',
+      linkedProblemId: null, photos: [], weatherC: null, weatherIcon: null,
+    }, db)
+    extract.mockResolvedValueOnce(response)
+
+    await sync()
+
+    const { userMessage } = extract.mock.calls[0][0]
+    expect(userMessage).toContain('P1 (General, 2026-06-01): Damaged leaves')
+    expect(userMessage).not.toContain(problem.id)
+    expect(userMessage).not.toContain(problem.cropInstanceId)
+    expect((await getPendingExtractionByEntryId(entry.id, db))?.events[0].resolvedLinkedProblemId)
+      .toBe(problem.id)
+  })
+
+  it('PendingExtraction.usage sourced from the provider response', async () => {
+    const { db, entry, sync } = await setup()
+    extract.mockResolvedValueOnce(response)
+    await sync()
+    expect((await getPendingExtractionByEntryId(entry.id, db))?.usage).toEqual(usage)
+    expect(await db.getAllFromIndex('apiUsageLogs', 'by-entryId', entry.id)).toMatchObject([usage])
+  })
+
+  it('transport failure saves nothing and leaves entry unsynced', async () => {
+    const { db, entry, calls, sync } = await setup()
+    await sync()
+    expect(await db.count('pendingExtractions')).toBe(0)
+    expect(await db.count('apiUsageLogs')).toBe(0)
+    expect(await getUnsyncedEntries(db)).toEqual([entry])
+    expect(finalStatus(calls, entry.id, 'ai')).toBe('failed')
+    expect(extract).toHaveBeenCalledTimes(1)
+  })
+
+  it('billed-but-invalid logs one usage and saves no extraction', async () => {
+    const { db, entry, calls, sync } = await setup()
+    extract.mockResolvedValueOnce({ ...response, events: [{ eventType: 'invalid' }] })
+    await sync()
+    expect(await db.count('pendingExtractions')).toBe(0)
+    expect(await db.getAll('apiUsageLogs')).toMatchObject([{ entryId: entry.id, ...usage }])
+    expect(await getUnsyncedEntries(db)).toEqual([entry])
+    expect(finalStatus(calls, entry.id, 'ai')).toBe('failed')
+    expect(extract).toHaveBeenCalledTimes(1)
+  })
+
+  it('next sync retries after a failed extraction', async () => {
+    const { db, entry, sync } = await setup()
+    await sync()
+    expect(await db.count('pendingExtractions')).toBe(0)
+    extract.mockResolvedValueOnce(response)
+    await sync()
+    expect(extract).toHaveBeenCalledTimes(2)
+    expect(await db.count('pendingExtractions')).toBe(1)
+    expect(await getPendingExtractionByEntryId(entry.id, db)).toBeDefined()
+  })
+
+  it('existing PendingExtraction skips AI with no new usage log', async () => {
+    const { db, sync } = await setup()
+    extract.mockResolvedValueOnce(response)
+    await sync()
+    expect(await db.count('pendingExtractions')).toBe(1)
+    const logs = await db.getAll('apiUsageLogs')
+    expect(logs).toHaveLength(1)
+    extract.mockClear()
+    await sync()
+    expect(extract).not.toHaveBeenCalled()
+    expect(await db.getAll('apiUsageLogs')).toEqual(logs)
+  })
+
+  it('weather is written even when extraction fails', async () => {
+    const { db, entry, calls, sync } = await setup(baseSettings)
+    await sync()
+    expect((await db.get('journalEntries', entry.id))?.weatherC).toBe(18)
+    expect(finalStatus(calls, entry.id, 'ai')).toBe('failed')
+    expect(extract).toHaveBeenCalledTimes(1)
+  })
+
+  it('in-flight guard prevents a second extraction for the entry', async () => {
+    const { db, sync } = await setup()
+    let finish!: (result: RawExtractionResult) => void
+    const responsePromise = new Promise<RawExtractionResult>(resolve => { finish = resolve })
+    extract.mockReturnValueOnce(responsePromise)
+    const firstSync = sync()
+    try {
+      await vi.waitFor(() => expect(extract).toHaveBeenCalledTimes(1))
+      await sync()
+      expect(extract).toHaveBeenCalledTimes(1)
+    } finally {
+      finish(response)
+      await firstSync
+    }
+    expect(await db.count('pendingExtractions')).toBe(1)
+  })
+
+  it('one usage log per successful extraction', async () => {
+    const { db, entry, calls, sync } = await setup()
+    extract.mockResolvedValueOnce(response)
+    await sync()
+    expect(finalStatus(calls, entry.id, 'ai')).toBe('review-pending')
+    expect(await db.getAll('apiUsageLogs')).toMatchObject([{ entryId: entry.id }])
+  })
+
+  it('valid events without usage save a review without a usage log', async () => {
+    const { db, entry, calls, sync } = await setup()
+    extract.mockResolvedValueOnce({ events: [event], usage: null })
+    await sync()
+    expect(await getPendingExtractionByEntryId(entry.id, db)).toMatchObject({
+      usage: null,
+      events: [{ status: 'pending', extracted: event }],
+    })
+    expect(await db.count('apiUsageLogs')).toBe(0)
+    expect(finalStatus(calls, entry.id, 'ai')).toBe('review-pending')
   })
 })

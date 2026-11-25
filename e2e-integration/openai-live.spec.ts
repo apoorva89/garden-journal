@@ -76,15 +76,16 @@ test('live OpenAI extraction: one real request, validated events, one usage log'
       apiKeys: { openai: apiKey },
     }
 
-    const events = await runExtraction({ entryId: ENTRY_ID, request, settings, database })
+    const { events, usage } = await runExtraction({ entryId: ENTRY_ID, request, settings, database })
 
     expect(requestCount).toBe(1)
     console.log('\n=== EXTRACTED GARDEN EVENTS ===')
     console.log(JSON.stringify(events, null, 2))
 
-    // Integration contract: a successful real request returns valid events.
+    // Integration contract: a successful real request returns valid events and usage.
     expect(z.array(ExtractedEventSchema).safeParse(events).success).toBe(true)
     expect(events.length).toBeGreaterThan(0)
+    expect(usage).not.toBeNull()
 
     // Inspect usage AFTER reading it; no second API call is needed.
     const logs = await database.getAllFromIndex('apiUsageLogs', 'by-entryId', ENTRY_ID)
@@ -112,6 +113,8 @@ test('live OpenAI extraction: one real request, validated events, one usage log'
     for (const value of Object.values(logs[0].rawUsage)) {
       expect(typeof value).toBe('number')
     }
+    expect(usage!.inputTokens).toBe(logs[0].inputTokens)
+    expect(usage!.outputTokens).toBe(logs[0].outputTokens)
 
     const has = (type: string, crop: string) => events.some(
       e => e.eventType === type && e.matchedRosterName === crop,
