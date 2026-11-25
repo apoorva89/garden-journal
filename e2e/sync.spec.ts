@@ -512,6 +512,44 @@ test.describe('SyncSheet reopen: persisted weather and AI state (issue #49 TC-1)
     await expect(reviewLink).toBeVisible()
   })
 
+  test('Sync Now recovers when the post-run extraction read fails', async ({ page }) => {
+    await page.route('https://api.anthropic.com/v1/messages', async (route) => {
+      // The orchestrator has already checked for an existing extraction.
+      // Fail the next read of this store while allowing the extraction write.
+      await page.evaluate(() => {
+        const transaction = IDBDatabase.prototype.transaction
+        IDBDatabase.prototype.transaction = function (storeNames, mode, options) {
+          if (storeNames === 'pendingExtractions' && mode !== 'readwrite') {
+            IDBDatabase.prototype.transaction = transaction
+            throw new DOMException('Injected post-run extraction read failure', 'UnknownError')
+          }
+          return transaction.call(this, storeNames, mode, options)
+        }
+      })
+      await route.fulfill({ json: { content: [{ type: 'tool_use', input: { events: [] } }] } })
+    })
+
+    const id = 'e-refresh-failure'
+    await page.goto(`${BASE}/journal/`)
+    await seedDb(page, [{ id, date: '2026-06-01', text: 'Checked tomato plants' }], {
+      aiProvider: 'anthropic',
+      aiModel: 'claude-sonnet-4-6',
+      apiKey: 'sk-ant-test',
+    })
+    await page.reload()
+    await page.getByRole('button', { name: 'Sync entries' }).click()
+
+    const syncButton = page.getByTestId('sync-button')
+    await syncButton.click()
+    await expect(page.getByTestId(`ai-status-${id}`)).toHaveAttribute('aria-label', 'AI: review-pending')
+    await expect(syncButton).toBeEnabled()
+    await expect(page.getByTestId('sync-summary')).toContainText('AI: 1 queued')
+    expect(await storedReviewData(page)).toMatchObject({ extractions: [{ entryId: id }] })
+
+    await syncButton.click()
+    await expect(page.getByRole('link', { name: 'Review →' })).toBeVisible()
+  })
+
   test('weather shows synced and AI shows skipped on reopen after run with no AI config', async ({ page }) => {
     await page.route('**/archive-api.open-meteo.com/**', (route) => route.fulfill({ json: WEATHER_MOCK }))
     await page.goto(`${BASE}/journal/`)
